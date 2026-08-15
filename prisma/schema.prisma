@@ -1,0 +1,261 @@
+// resembles.nothing — database schema
+// Run `npx prisma migrate dev` after setting DATABASE_URL in .env
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Users ----------
+
+model User {
+  id             String   @id @default(uuid())
+  name           String
+  email          String   @unique
+  passwordHash   String
+  isArtist       Boolean  @default(false)
+  isAdmin        Boolean  @default(false)
+  whatsappNumber String?
+  whatsappOptIn  Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  bankDetails BankDetails?
+  submissions ArtistSubmission[]
+  products    Product[]          @relation("ArtistProducts")
+  cartItems   CartItem[]
+  orders      Order[]
+  reviews     Review[]
+  quizResult  QuizResult?
+  notifications NotificationLog[]
+  payoutsOwed OrderItem[]        @relation("ArtistPayouts")
+  chatsAsCustomer ChatMessage[]  @relation("CustomerChats")
+  chatsSent       ChatMessage[]  @relation("SentChats")
+}
+
+// Bank details are collected so we can pay artists per sale.
+// accountNumberEnc must be encrypted at rest (see src/lib/crypto.js) — never store plaintext.
+model BankDetails {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id])
+  accountHolderName String
+  accountNumberEnc  String
+  ifsc              String
+  upiId             String?
+  updatedAt         DateTime @updatedAt
+}
+
+// ---------- Catalog ----------
+
+enum ProductFormat {
+  TAPESTRY
+  CANVAS
+  TRIPTYCH
+}
+
+enum ProductStatus {
+  ACTIVE
+  SOLD
+  RETIRED
+}
+
+model Product {
+  id          String        @id @default(uuid())
+  slug        String        @unique
+  name        String
+  category    String
+  price       Int // in paise (₹1 = 100) to avoid float rounding on money
+  widthCm     Int
+  images      String[] // [far, close, exact] — matches the 3-image gallery in the frontend
+  blurb       String
+  description String        @db.Text
+  story       String        @db.Text
+  features    String[]
+  format      ProductFormat
+  status      ProductStatus @default(ACTIVE)
+  cartCount   Int           @default(0) // denormalized counter shown as social proof; recomputed by a cron, see src/lib/cartCount.js
+  soldAt      DateTime?
+
+  artistId String? // null = house design, made by the resembles.nothing studio
+  artist   User?   @relation("ArtistProducts", fields: [artistId], references: [id])
+
+  submission   ArtistSubmission? @relation(fields: [submissionId], references: [id])
+  submissionId String?           @unique
+
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  reviews    Review[]
+  chatMessages ChatMessage[]
+
+  createdAt DateTime @default(now())
+
+  @@index([category])
+  @@index([status])
+}
+
+// ---------- Artist submissions (review queue) ----------
+
+enum SubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ArtistSubmission {
+  id             String           @id @default(uuid())
+  artistId       String
+  artist         User             @relation(fields: [artistId], references: [id])
+  title          String
+  description    String           @db.Text
+  format         ProductFormat
+  suggestedPrice Int
+  imageUrl       String
+  status         SubmissionStatus @default(PENDING)
+  reviewNote     String? // shown to the artist if rejected
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime         @default(now())
+
+  product Product?
+}
+
+// ---------- Cart & Orders ----------
+// Every cart/order line is tied to a specific size tier — not just a product —
+// since the frontend lets buyers pick Signature/Grand/Monument (tapestry),
+// Window/Gateway/Portal/Realm (canvas), etc., each at its own INR and USD
+// price. See src/lib/pricing.js for the tier tables these prices come from.
+
+model CartItem {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  sizeLabel String // "Signature" | "Grand" | "Monument" | "Window" | "Gateway" | "Portal" | "Realm"
+  sizeDims  String // "70 × 100 cm"
+  priceINR  Int // the actual amount charged, in INR — this is what Razorpay bills
+  priceUSD  Int // shown for reference only when the shopper has USD display mode on
+  qty       Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId, sizeLabel])
+}
+
+enum OrderStatus {
+  PLACED
+  BEING_MADE
+  PACKED
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+model Order {
+  id                String      @id @default(uuid())
+  userId            String
+  user              User        @relation(fields: [userId], references: [id])
+  items             OrderItem[]
+  totalAmount       Int
+  status            OrderStatus @default(PLACED)
+  razorpayOrderId   String?     @unique
+  razorpayPaymentId String?
+  shippingAddress   Json
+  createdAt         DateTime    @default(now())
+
+  statusEvents OrderStatusEvent[]
+}
+
+// Every status change is logged here, and each one is what triggers a WhatsApp
+// message via src/lib/whatsapp.js — this is the "every step of the journey" feature.
+model OrderStatusEvent {
+  id        String      @id @default(uuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id])
+  status    OrderStatus
+  note      String?
+  createdAt DateTime    @default(now())
+}
+
+enum PayoutStatus {
+  NOT_APPLICABLE // house design, no artist to pay
+  PENDING
+  PAID
+}
+
+model OrderItem {
+  id                 String       @id @default(uuid())
+  orderId            String
+  order              Order        @relation(fields: [orderId], references: [id])
+  productId          String
+  product             Product     @relation(fields: [productId], references: [id])
+  sizeLabel          String
+  sizeDims           String
+  priceINR           Int // actual amount charged for this line, in INR
+  priceUSD           Int // reference value only — never charged
+  artistId           String?
+  artist             User?        @relation("ArtistPayouts", fields: [artistId], references: [id])
+  artistPayoutAmount Int?
+  artistPayoutStatus PayoutStatus @default(NOT_APPLICABLE)
+  artistPayoutPaidAt DateTime?
+}
+
+// ---------- Reviews & customer photos ----------
+
+model Review {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  rating    Int
+  text      String
+  photoUrls String[]
+  createdAt DateTime @default(now())
+}
+
+// ---------- Art persona quiz ----------
+
+model QuizResult {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  personaId   String
+  personaName String
+  createdAt   DateTime @default(now())
+}
+
+// ---------- Notifications (WhatsApp + in-app) ----------
+
+model NotificationLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  channel   String // "whatsapp" | "app"
+  title     String
+  body      String
+  status    String // "sent" | "failed" | "queued"
+  createdAt DateTime @default(now())
+}
+
+// ---------- Chat with the Artist ----------
+// One conversation per (product, customer) pair — matches the frontend's
+// per-product chat modal. Either the customer or the artist can send into it.
+
+model ChatMessage {
+  id         String   @id @default(uuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  customerId String
+  customer   User     @relation("CustomerChats", fields: [customerId], references: [id])
+  senderId   String
+  sender     User     @relation("SentChats", fields: [senderId], references: [id])
+  text       String   @db.Text
+  createdAt  DateTime @default(now())
+
+  @@index([productId, customerId])
+}
