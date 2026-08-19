@@ -17,22 +17,30 @@ router.get("/", requireAuth, async (req, res) => {
 // sizeLabel is optional — omit it to add the product's default tier, exactly
 // like tapping "Add to Cart" on a catalog card in the frontend (which skips
 // the size picker and uses whatever price that card already shows).
+// format is optional — omit it to use the design's first available format,
+// same idea as sizeLabel defaulting to the middle tier.
 router.post("/add", requireAuth, async (req, res) => {
-  const { productId, qty = 1, sizeLabel } = req.body;
+  const { productId, qty = 1, format, sizeLabel } = req.body;
 
   const product = await prisma.product.findUnique({ where: { id: productId } });
   if (!product || product.status !== "ACTIVE") {
     return res.status(409).json({ error: "This design is no longer available — it may already be sold" });
   }
 
-  const size = sizeLabel ? findSize(product.format, sizeLabel) : defaultSize(product.format, product.price);
+  const chosenFormat = format || product.formats[0];
+  if (!product.formats.includes(chosenFormat)) {
+    return res.status(400).json({ error: `This design isn't available as ${chosenFormat}` });
+  }
+
+  const size = sizeLabel ? findSize(chosenFormat, sizeLabel) : defaultSize(chosenFormat, product.price);
 
   const item = await prisma.cartItem.upsert({
-    where: { userId_productId_sizeLabel: { userId: req.user.id, productId, sizeLabel: size.label } },
+    where: { userId_productId_format_sizeLabel: { userId: req.user.id, productId, format: chosenFormat, sizeLabel: size.label } },
     update: { qty: { increment: qty } },
     create: {
       userId: req.user.id,
       productId,
+      format: chosenFormat,
       qty,
       sizeLabel: size.label,
       sizeDims: size.dims,

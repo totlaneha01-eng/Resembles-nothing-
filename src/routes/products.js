@@ -40,7 +40,7 @@ function slugify(name) {
 }
 
 const REQUIRED_FIELDS = ["name", "category", "price", "widthCm"];
-const VALID_FORMATS = ["TAPESTRY", "CANVAS", "TRIPTYCH"];
+const VALID_FORMATS = ["TAPESTRY", "CANVAS", "DIPTYCH", "TRIPTYCH", "QUADRIPTYCH"];
 
 // Shared validation + defaulting for a single product payload, used by both
 // the single-create and bulk-create endpoints so they behave identically.

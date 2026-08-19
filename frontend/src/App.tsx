@@ -60,25 +60,43 @@ const CANVAS_FEATURES = ["Premium 380 GSM canvas", "Fade-resistant ink", "Stretc
 // switching currency just changes which sheet's numbers are shown.
 // Picking a size doesn't create extra copies — it's still one design, made
 // and sold once, just at the scale the buyer picks.
+// Resembles.Nothing final price list, effective 2026-08-19. GST-inclusive —
+// these are the exact numbers a buyer pays, matching src/lib/pricing.js on
+// the backend (that copy is in paise; this one's in whole rupees, matching
+// how this file's currency() already displays everything).
 const TAPESTRY_SIZES = [
-  { label: "Signature", dims: "70 × 100 cm", priceINR: 999, priceUSD: 69 },
-  { label: "Grand", dims: "100 × 150 cm", priceINR: 1499, priceUSD: 79 },
-  { label: "Monument", dims: "130 × 180 cm", priceINR: 1999, priceUSD: 89 },
+  { label: "Signature", dims: "70 × 100 cm", priceINR: 1111, priceUSD: 79 },
+  { label: "Grand", dims: "100 × 150 cm", priceINR: 1666, priceUSD: 99 },
+  { label: "Monument", dims: "130 × 180 cm", priceINR: 2222, priceUSD: 109 },
 ];
 const CANVAS_SIZES = [
-  { label: "Window", dims: "20 × 30 cm", priceINR: 3199, priceUSD: 79 },
-  { label: "Gateway", dims: "30 × 30 cm", priceINR: 3899, priceUSD: 89 },
-  { label: "Portal", dims: "30 × 40 cm", priceINR: 4999, priceUSD: 99 },
-  { label: "Realm", dims: "50 × 70 cm", priceINR: 7999, priceUSD: 139 },
+  { label: "Window", dims: "20 × 30 cm", priceINR: 1799, priceUSD: 99 },
+  { label: "Gateway", dims: "30 × 30 cm", priceINR: 2299, priceUSD: 109 },
+  { label: "Portal", dims: "30 × 40 cm", priceINR: 2799, priceUSD: 119 },
+  { label: "Realm", dims: "50 × 70 cm", priceINR: 4499, priceUSD: 169 },
+];
+const DIPTYCH_SIZES = [
+  { label: "Window", dims: "20 × 30 cm per panel", priceINR: 3599, priceUSD: 129 },
+  { label: "Gateway", dims: "30 × 30 cm per panel", priceINR: 4399, priceUSD: 149 },
+  { label: "Portal", dims: "30 × 40 cm per panel", priceINR: 5599, priceUSD: 179 },
+  { label: "Realm", dims: "50 × 70 cm per panel", priceINR: 8999, priceUSD: 249 },
 ];
 const TRIPTYCH_SIZES = [
-  { label: "Signature", dims: "20 × 30 cm per panel", priceINR: 4599, priceUSD: 149 },
-  { label: "Grand", dims: "30 × 30 cm per panel", priceINR: 5799, priceUSD: 169 },
-  { label: "Monument", dims: "30 × 40 cm per panel", priceINR: 7199, priceUSD: 199 },
-  { label: "Realm", dims: "50 × 70 cm per panel", priceINR: 10499, priceUSD: 279 },
+  { label: "Window", dims: "20 × 30 cm per panel", priceINR: 5199, priceUSD: 179 },
+  { label: "Gateway", dims: "30 × 30 cm per panel", priceINR: 6499, priceUSD: 199 },
+  { label: "Portal", dims: "30 × 40 cm per panel", priceINR: 8099, priceUSD: 229 },
+  { label: "Realm", dims: "50 × 70 cm per panel", priceINR: 11799, priceUSD: 329 },
+];
+const QUADRIPTYCH_SIZES = [
+  { label: "Window", dims: "20 × 30 cm per panel", priceINR: 6799, priceUSD: 219 },
+  { label: "Gateway", dims: "30 × 30 cm per panel", priceINR: 8399, priceUSD: 269 },
+  { label: "Portal", dims: "30 × 40 cm per panel", priceINR: 10699, priceUSD: 319 },
+  { label: "Realm", dims: "50 × 70 cm per panel", priceINR: 15699, priceUSD: 429 },
 ];
 function sizesFor(product) {
+  if (product.format === "quadriptych") return QUADRIPTYCH_SIZES;
   if (product.format === "triptych") return TRIPTYCH_SIZES;
+  if (product.format === "diptych") return DIPTYCH_SIZES;
   if (product.format === "canvas") return CANVAS_SIZES;
   return TAPESTRY_SIZES;
 }
@@ -229,7 +247,13 @@ function normalizeDbProduct(p) {
   // object for when that picker gets built, so nothing has to be re-fetched.
   const formats = Array.isArray(p.formats) && p.formats.length ? p.formats : ["CANVAS"];
   const primaryFormat = formats[0];
-  const formatLabel = { TAPESTRY: "Tapestry", CANVAS: "Canvas", TRIPTYCH: "Triptych" }[primaryFormat] || primaryFormat;
+  const formatLabel = {
+    TAPESTRY: "Tapestry",
+    CANVAS: "Canvas",
+    DIPTYCH: "Split Canvas — Diptych",
+    TRIPTYCH: "Split Canvas — Triptych",
+    QUADRIPTYCH: "Split Canvas — Quadriptych",
+  }[primaryFormat] || primaryFormat;
   const images = Array.isArray(p.images) && p.images.length ? p.images : [PLACEHOLDER_IMG, PLACEHOLDER_IMG, PLACEHOLDER_IMG];
   return {
     id: p.slug,
@@ -730,7 +754,13 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
 
           <label style={labelStyle}>Available as — pick one or more</label>
           <div style={{ display: "flex", gap: 16, marginBottom: 10 }}>
-            {[["TAPESTRY", "Tapestry"], ["CANVAS", "Canvas"], ["TRIPTYCH", "Split canvas"]].map(([val, label]) => (
+            {[
+              ["TAPESTRY", "Tapestry"],
+              ["CANVAS", "Canvas (single panel)"],
+              ["DIPTYCH", "Split canvas — Diptych (2 panels)"],
+              ["TRIPTYCH", "Split canvas — Triptych (3 panels)"],
+              ["QUADRIPTYCH", "Split canvas — Quadriptych (4 panels)"],
+            ].map(([val, label]) => (
               <label key={val} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: cream, cursor: "pointer" }}>
                 <input
                   type="checkbox"
@@ -761,7 +791,7 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
         <div style={{ border: `1px solid ${line}`, padding: 20 }}>
           <div style={{ fontSize: 13, color: cream, marginBottom: 6 }}>Bulk add — paste a JSON array</div>
           <p style={{ fontSize: 11, color: stone, marginBottom: 12, lineHeight: 1.5 }}>
-            One object per design: <code>name, category, price</code> (in ₹), <code>widthCm, formats</code> (array — any of TAPESTRY / CANVAS / TRIPTYCH), <code>imageUrl, blurb</code>. <code>editionSize</code> is optional (defaults to 1 — true one-of-one). Partial batches are fine — anything that fails is reported below without blocking the rest.
+            One object per design: <code>name, category, price</code> (in ₹), <code>widthCm, formats</code> (array — any of TAPESTRY / CANVAS / DIPTYCH / TRIPTYCH / QUADRIPTYCH), <code>imageUrl, blurb</code>. <code>editionSize</code> is optional (defaults to 1 — true one-of-one). Partial batches are fine — anything that fails is reported below without blocking the rest.
           </p>
           <textarea
             style={{ ...inputStyle, height: 190, fontFamily: "monospace", fontSize: 11.5, resize: "vertical" }}
