@@ -157,7 +157,7 @@ const ORDER_STEPS = ["Order placed", "Being made", "Packed", "Shipped", "Out for
 
 const ARTIST_BIOS = {
   "resembles.nothing studio": {
-    bio: "The in-house studio behind resembles.nothing — every house design starts here, built specifically for the one-of-one model: made once, never reprinted.",
+    bio: "The in-house studio behind resembles.nothing — every house design starts here.",
     since: "2024",
   },
   "Priya Menon": {
@@ -205,7 +205,7 @@ const TRUST_BADGES = [
   { icon: "🔒", label: "Secure prepaid checkout", sub: "Powered by Razorpay" },
   { icon: "🖋️", label: "Founder-backed", sub: "A real person stands behind every order" },
   { icon: "📦", label: "Made & shipped, tracked", sub: "Updates sent straight to your DMs" },
-  { icon: "🎨", label: "One-of-one, always", sub: "Every design retired the moment it sells" },
+  { icon: "🎨", label: "Curated, limited runs", sub: "Each design carries a capped edition size" },
 ];
 
 // Placeholder slots for real unboxing/review videos once orders start
@@ -225,11 +225,11 @@ const CATEGORIES = ["All", "Canvas", "Movies", "Motivation", "Abstract", "Spirit
 
 const FAQS = [
   { q: "Why do I have to pay the full amount upfront?", a: "Every piece is made specifically for your order, so we ask for prepayment before production starts. Payments are processed securely through Razorpay — we never see or store your card details — and the founder's own Instagram is linked on this site if you'd like to see the person accountable for your order." },
-  { q: "Will my design ever be sold again?", a: "No. Every piece on resembles.nothing is made once. Once a design sells out or is retired from the catalog, it's gone for good — that's the whole point of one-of-one." },
+  { q: "Will my design ever be sold again?", a: "Each design has a set edition size — sometimes just one piece, sometimes a small run — decided when it's listed. Once every piece in that edition sells, it's retired from the catalog for good and won't be reprinted." },
   { q: "How long does an order take to arrive?", a: "Most tapestries ship within 3–5 working days and canvases within 5–8 working days, since each one is made to order. Pan-India delivery usually takes another 3–6 days depending on your pin code." },
   { q: "Can I return or exchange a piece?", a: "Because every item is made specifically for your order, we don't accept returns for change-of-mind. If a piece arrives damaged or defective, we'll replace it free of charge — just send us photos within 48 hours of delivery." },
   { q: "What sizes do tapestries come in?", a: "Signature (70 × 100 cm), Grand (100 × 150 cm), and Monument (130 × 180 cm) — see the full pricing table below for what fits your space." },
-  { q: "Can you turn my own photo or idea into a design?", a: "Yes — DM us your concept, a reference image, or even a photo you'd like reimagined, and our team will quote a custom one-of-one piece for you." },
+  { q: "Can you turn my own photo or idea into a design?", a: "Yes — DM us your concept, a reference image, or even a photo you'd like reimagined, and our team will quote a custom piece for you." },
   { q: "How does the wall preview tool work?", a: "Upload a photo of your actual wall, pick any design from the catalog, and drag / resize it right on your photo — so you know exactly how it'll look before you order." },
   { q: "Do you deliver outside India?", a: "Right now we only ship pan-India. International shipping is something we're actively working on — follow our Instagram for updates." },
 ];
@@ -439,7 +439,7 @@ function isTapestryFormat(product) {
   return /tapestry/i.test(product.size) || /triptych/i.test(product.size);
 }
 
-// Gallery-wall card: artwork, name, "One of One", price — nothing else.
+// Gallery-wall card: artwork, name, price — nothing else.
 // The full detail (blurb, materials, cart-interest, add-to-cart) lives on
 // the product page, one click away — the grid's job is to let a visitor
 // see many pieces at once and think "which one is mine?", not to sell each
@@ -462,7 +462,6 @@ function ProductCard({ p, gold, goldHi, cream, stone, priceFmt, openProduct }) {
       </div>
       <div style={{ paddingTop: 12 }}>
         <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500, fontSize: 16, color: cream, margin: 0, lineHeight: 1.3 }}>{p.name}</h3>
-        <div style={{ fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", color: gold, marginTop: 5 }}>One of One</div>
         <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 15, color: stone, marginTop: 6 }}>{priceFmt(p)}</div>
       </div>
     </div>
@@ -791,7 +790,7 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
             ))}
           </div>
 
-          <label style={labelStyle}>Edition size — how many pieces total can ever sell (across any format/size). Leave at 1 for true one-of-one.</label>
+          <label style={labelStyle}>Edition size — how many pieces total can ever sell (across any format/size). Leave at 1 for a single-piece edition.</label>
           <input type="number" min="1" style={inputStyle} value={single.editionSize} onChange={(e) => setSingle((s) => ({ ...s, editionSize: e.target.value }))} />
 
           <label style={labelStyle}>Image URL</label>
@@ -807,7 +806,7 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
         <div style={{ border: `1px solid ${line}`, padding: 20 }}>
           <div style={{ fontSize: 13, color: cream, marginBottom: 6 }}>Bulk add — paste a JSON array</div>
           <p style={{ fontSize: 11, color: stone, marginBottom: 12, lineHeight: 1.5 }}>
-            One object per design: <code>name, category, price</code> (in ₹), <code>widthCm, formats</code> (array — any of TAPESTRY / CANVAS / DIPTYCH / TRIPTYCH / QUADRIPTYCH), <code>imageUrl, blurb</code>. <code>editionSize</code> is optional (defaults to 1 — true one-of-one). Partial batches are fine — anything that fails is reported below without blocking the rest.
+            One object per design: <code>name, category, price</code> (in ₹), <code>widthCm, formats</code> (array — any of TAPESTRY / CANVAS / DIPTYCH / TRIPTYCH / QUADRIPTYCH), <code>imageUrl, blurb</code>. <code>editionSize</code> is optional (defaults to 1 — a single-piece edition). Partial batches are fine — anything that fails is reported below without blocking the rest.
           </p>
           <textarea
             style={{ ...inputStyle, height: 190, fontFamily: "monospace", fontSize: 11.5, resize: "vertical" }}
@@ -1396,7 +1395,7 @@ export default function App() {
               <Btn variant="ghost" onClick={() => document.getElementById("visualizer").scrollIntoView({ behavior: "smooth" })}>See It On Your Wall</Btn>
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 30, flexWrap: "wrap" }}>
-              {["🔒 Secure prepaid checkout", "🖋️ Founder-backed brand", "🎨 One-of-one, always"].map((t) => (
+              {["🔒 Secure prepaid checkout", "🖋️ Founder-backed brand", "🎨 Curated, limited runs"].map((t) => (
                 <span key={t} style={{ fontSize: 11, color: stone, border: `1px solid ${line}`, padding: "7px 12px" }}>{t}</span>
               ))}
             </div>
@@ -1720,13 +1719,13 @@ export default function App() {
                     ))}
                   </div>
                   <p style={{ fontSize: 10.5, color: stone, marginTop: 8, lineHeight: 1.5 }}>
-                    Still one of one — format and sizing change the scale and material of this single piece, not how many exist.
+                    Format and sizing change the scale and material of this piece, not its edition size.
                   </p>
                 </div>
 
                 <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, color: cream, marginBottom: 6 }}>{fmtTier(selectedSize || defaultSizeFor(effectiveProduct))}</div>
                 {viewProduct.sold ? (
-                  <div style={{ fontSize: 12, color: goldHi, marginBottom: 18 }}>Sold — this one-of-one has found its home and will not be remade.</div>
+                  <div style={{ fontSize: 12, color: goldHi, marginBottom: 18 }}>Sold out — this edition has found its home and won't be remade.</div>
                 ) : viewProduct.cartCount > 0 ? (
                   <div style={{ fontSize: 12, color: goldHi, marginBottom: 18 }}>🛒 In {viewProduct.cartCount} cart{viewProduct.cartCount > 1 ? "s" : ""} right now</div>
                 ) : <div style={{ marginBottom: 18 }} />}
@@ -1770,7 +1769,7 @@ export default function App() {
                 </div>
 
                 <p style={{ fontSize: 11.5, color: stone, marginTop: 18, lineHeight: 1.6 }}>
-                  One of one — once this design is sold, it won't be made again. Made by{" "}
+                  Once this edition sells out, it won't be made again. Made by{" "}
                   <strong onClick={() => openArtist(viewProduct.artist)} style={{ color: goldHi, fontWeight: 500, cursor: "pointer", textDecoration: "underline" }}>{viewProduct.artist}</strong>.
                 </p>
               </div>
@@ -2121,7 +2120,7 @@ export default function App() {
           <div style={{ marginBottom: 26 }}>
             <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 12 }}>Order History</div>
             {orders.length === 0 ? (
-              <p style={{ fontSize: 13, color: stone }}>No orders yet — your one-of-one pieces will show up here once you check out.</p>
+              <p style={{ fontSize: 13, color: stone }}>No orders yet — your pieces will show up here once you check out.</p>
             ) : (
               <div>
                 {orders.map((o) => (
