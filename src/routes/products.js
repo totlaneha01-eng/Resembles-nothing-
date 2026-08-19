@@ -9,6 +9,7 @@ router.get("/", async (req, res) => {
   const { category } = req.query;
   const products = await prisma.product.findMany({
     where: category && category !== "All" ? { category } : undefined,
+    include: { artist: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
   });
   res.json({ products });
@@ -26,15 +27,101 @@ router.get("/:slug", async (req, res) => {
   res.json({ product });
 });
 
+function slugify(name) {
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") +
+    "-" +
+    Date.now().toString(36) +
+    Math.random().toString(36).slice(2, 6)
+  );
+}
+
+const REQUIRED_FIELDS = ["name", "category", "price", "widthCm", "format"];
+const VALID_FORMATS = ["TAPESTRY", "CANVAS", "TRIPTYCH"];
+
+// Shared validation + defaulting for a single product payload, used by both
+// the single-create and bulk-create endpoints so they behave identically.
+function prepareProductData(input) {
+  const missing = REQUIRED_FIELDS.filter((f) => input[f] === undefined || input[f] === null || input[f] === "");
+  if (missing.length) throw new Error(`Missing required field(s): ${missing.join(", ")}`);
+
+  const format = String(input.format).toUpperCase();
+  if (!VALID_FORMATS.includes(format)) {
+    throw new Error(`format must be one of ${VALID_FORMATS.join(", ")} (got "${input.format}")`);
+  }
+
+  const price = Number(input.price);
+  const widthCm = Number(input.widthCm);
+  if (!Number.isFinite(price) || price <= 0) throw new Error("price must be a positive number (in paise)");
+  if (!Number.isFinite(widthCm) || widthCm <= 0) throw new Error("widthCm must be a positive number");
+
+  const images = Array.isArray(input.images) && input.images.length ? input.images : input.imageUrl ? [input.imageUrl, input.imageUrl, input.imageUrl] : [];
+  if (images.length === 0) throw new Error("images (array) or imageUrl is required");
+
+  return {
+    slug: input.slug ? String(input.slug) : slugify(input.name),
+    name: input.name,
+    category: input.category,
+    price,
+    widthCm,
+    images,
+    blurb: input.blurb || input.name,
+    description: input.description || input.blurb || input.name,
+    story: input.story || input.description || input.blurb || input.name,
+    features: Array.isArray(input.features) ? input.features : [],
+    format,
+    artistId: input.artistId || null,
+  };
+}
+
 // Admin-only: create a house design directly (bypassing the artist submission queue).
 router.post("/", requireAuth, requireAdmin, async (req, res) => {
-  const product = await prisma.product.create({ data: req.body });
-  res.json({ product });
+  try {
+    const data = prepareProductData(req.body);
+    const product = await prisma.product.create({ data });
+    res.json({ product });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Admin-only: create many products in one call, e.g. from a pasted catalog
+// dump. Best-effort per item — one bad row doesn't fail the whole batch, so
+// the caller can see exactly which rows succeeded and which need fixing.
+router.post("/bulk", requireAuth, requireAdmin, async (req, res) => {
+  const items = Array.isArray(req.body.products) ? req.body.products : null;
+  if (!items || items.length === 0) return res.status(400).json({ error: "Body must be { products: [...] } with at least one item" });
+  if (items.length > 200) return res.status(400).json({ error: "Max 200 products per bulk request" });
+
+  const results = [];
+  for (let i = 0; i < items.length; i++) {
+    try {
+      const data = prepareProductData(items[i]);
+      const product = await prisma.product.create({ data });
+      results.push({ index: i, success: true, product });
+    } catch (err) {
+      results.push({ index: i, success: false, error: err.message, name: items[i]?.name });
+    }
+  }
+
+  const created = results.filter((r) => r.success).length;
+  res.json({ results, created, failed: results.length - created });
 });
 
 router.patch("/:id", requireAuth, requireAdmin, async (req, res) => {
   const product = await prisma.product.update({ where: { id: req.params.id }, data: req.body });
   res.json({ product });
+});
+
+// Admin-only: remove a product entirely (e.g. cleaning up placeholder/seed
+// entries). Prefer PATCH status: "RETIRED" for a product that actually sold
+// or shouldn't be deleted for record-keeping — this is a hard delete.
+router.delete("/:id", requireAuth, requireAdmin, async (req, res) => {
+  await prisma.product.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
 });
 
 module.exports = router;
