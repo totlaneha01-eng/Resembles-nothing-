@@ -54,7 +54,9 @@ model BankDetails {
 enum ProductFormat {
   TAPESTRY
   CANVAS
-  TRIPTYCH
+  DIPTYCH // split canvas, 2 panels
+  TRIPTYCH // split canvas, 3 panels
+  QUADRIPTYCH // split canvas, 4 panels
 }
 
 enum ProductStatus {

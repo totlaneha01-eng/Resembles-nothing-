@@ -26,11 +26,23 @@ app.use("/webhooks/whatsapp", require("./routes/whatsappWebhook"));
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 
-// Centralized error handler — every route above can just `throw` or reject
-// and it lands here instead of crashing the process or leaking stack traces.
+// Centralized error handler — catches errors thrown synchronously in a route,
+// or passed explicitly via next(err). It does NOT catch a rejected promise
+// inside an async route handler on Express 4 (no autonomous forwarding to
+// error middleware — that's an Express 5 change) — a route that awaits
+// something and doesn't wrap it in its own try/catch can still take the
+// whole process down. See routes/orders.js for the pattern that route uses.
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(err.status || 500).json({ error: err.message || "Something went wrong" });
+});
+
+// Last-resort safety net: if some route anywhere still lets a rejection
+// escape uncaught, log it instead of letting Node terminate the process.
+// Losing one request to a 500 the client never sees is bad; losing the
+// entire site for every visitor because of it is much worse.
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled promise rejection (server kept running):", reason);
 });
 
 const PORT = process.env.PORT || 4000;
