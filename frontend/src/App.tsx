@@ -100,6 +100,24 @@ function sizesFor(product) {
   if (product.format === "canvas") return CANVAS_SIZES;
   return TAPESTRY_SIZES;
 }
+// Which formats a design can actually be ordered in — real DB products carry
+// a `formats` array (see normalizeDbProduct); the hardcoded CATALOG demo
+// items only ever had one, so fall back to that.
+function formatsFor(product) {
+  return product.formats && product.formats.length ? product.formats : [(product.format || "canvas").toUpperCase()];
+}
+const FORMAT_LABELS = {
+  TAPESTRY: "Tapestry",
+  CANVAS: "Canvas",
+  DIPTYCH: "Split Canvas — Diptych",
+  TRIPTYCH: "Split Canvas — Triptych",
+  QUADRIPTYCH: "Split Canvas — Quadriptych",
+};
+// A product object with `format` swapped to whichever one is currently
+// selected, so sizesFor/defaultSizeFor/isTapestryFormat all work unchanged.
+function withFormat(product, format) {
+  return { ...product, format: format.toLowerCase() };
+}
 // Which tier a product's stored `price` corresponds to, so the size picker
 // defaults to whatever price the catalog card already advertises.
 function defaultSizeFor(product) {
@@ -421,33 +439,31 @@ function isTapestryFormat(product) {
   return /tapestry/i.test(product.size) || /triptych/i.test(product.size);
 }
 
-function ProductCard({ p, gold, goldHi, cream, stone, line, ink, priceFmt, openProduct, addToCart }) {
+// Gallery-wall card: artwork, name, "One of One", price — nothing else.
+// The full detail (blurb, materials, cart-interest, add-to-cart) lives on
+// the product page, one click away — the grid's job is to let a visitor
+// see many pieces at once and think "which one is mine?", not to sell each
+// card on its own.
+function ProductCard({ p, gold, goldHi, cream, stone, priceFmt, openProduct }) {
   const [ref, inView] = useInView(0.12);
   const revealClass = isTapestryFormat(p) ? "reveal-tapestry" : "reveal-canvas";
   return (
-    <div ref={ref} className={`prod-card ${revealClass} ${inView ? "in-view" : ""}`} style={{ border: `1px solid ${line}`, opacity: p.sold ? 0.72 : 1, position: "relative" }}>
+    <div
+      ref={ref}
+      className={`prod-card ${revealClass} ${inView ? "in-view" : ""}`}
+      onClick={() => openProduct(p)}
+      style={{ cursor: "pointer", opacity: p.sold ? 0.72 : 1, position: "relative" }}
+    >
       {p.sold && (
-        <div style={{ position: "absolute", top: 12, left: 12, zIndex: 2, background: ink, border: `1px solid ${gold}`, color: goldHi, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", padding: "5px 10px" }}>Sold — one of one</div>
+        <div style={{ position: "absolute", top: 10, left: 10, zIndex: 2, background: "rgba(10,10,9,0.88)", border: `1px solid ${gold}`, color: goldHi, fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", padding: "5px 9px" }}>Sold</div>
       )}
-      <div onClick={() => openProduct(p)} style={{ aspectRatio: "3/4", overflow: "hidden", cursor: "pointer" }}>
+      <div style={{ aspectRatio: "3/4", overflow: "hidden" }}>
         <img src={p.images[0]} alt={p.name} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       </div>
-      <div style={{ padding: 18 }}>
-        <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold }}>{p.category}</div>
-        <h3 onClick={() => openProduct(p)} style={{ fontSize: 20, margin: "6px 0 4px", cursor: "pointer" }}>{p.name}</h3>
-        <div style={{ fontSize: 11, color: stone, marginBottom: 8 }}>{p.size}</div>
-        <div style={{ fontSize: 12, color: stone, lineHeight: 1.5, minHeight: 32 }}>{p.blurb}</div>
-        {!p.sold && p.cartCount > 0 && (
-          <div style={{ fontSize: 10.5, color: goldHi, marginTop: 6 }}>🛒 in {p.cartCount} cart{p.cartCount > 1 ? "s" : ""} right now</div>
-        )}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>
-          <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, color: cream }}>{priceFmt(p)}</span>
-          <button onClick={() => openProduct(p)}
-            style={{ background: "none", border: "none", color: stone, fontSize: 11, textDecoration: "underline", cursor: "pointer" }}>
-            View details
-          </button>
-        </div>
-        <Btn full disabled={p.sold} style={{ marginTop: 12 }} onClick={() => addToCart(p)}>{p.sold ? "Sold Out" : "Add to Cart"}</Btn>
+      <div style={{ paddingTop: 12 }}>
+        <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500, fontSize: 16, color: cream, margin: 0, lineHeight: 1.3 }}>{p.name}</h3>
+        <div style={{ fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", color: gold, marginTop: 5 }}>One of One</div>
+        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 15, color: stone, marginTop: 6 }}>{priceFmt(p)}</div>
       </div>
     </div>
   );
@@ -823,6 +839,7 @@ export default function App() {
   const [orders, setOrders] = useState([]);
   const [viewProduct, setViewProduct] = useState(null);
   const [activeImg, setActiveImg] = useState(0);
+  const [selectedFormat, setSelectedFormat] = useState(null); // e.g. "CANVAS" — which of the design's available formats is picked
   const [selectedSize, setSelectedSize] = useState(null);
   const [cart, setCart] = useState([]);
   const [user, setUser] = useState(null);
@@ -896,15 +913,20 @@ export default function App() {
     setTimeout(() => setToast(null), 2600);
   }
 
-  function addToCart(product, size) {
-    const chosenSize = size || defaultSizeFor(product);
-    const cartId = `${product.id}::${chosenSize.label}`;
+  function addToCart(product, format, size) {
+    const chosenFormat = format || formatsFor(product)[0];
+    const chosenSize = size || defaultSizeFor(withFormat(product, chosenFormat));
+    // Format is part of the cart identity, not just size — the same design
+    // can sit in the cart once as a Canvas and once as a Diptych, and their
+    // size labels can collide (both use "Window"/"Gateway"/...), so format
+    // has to be in the key or one would silently overwrite the other.
+    const cartId = `${product.id}::${chosenFormat}::${chosenSize.label}`;
     setCart((c) => {
       const existing = c.find((i) => i.cartId === cartId);
       if (existing) return c.map((i) => (i.cartId === cartId ? { ...i, qty: i.qty + 1 } : i));
-      return [...c, { ...product, cartId, sizeLabel: chosenSize.label, sizeDims: chosenSize.dims, price: chosenSize.priceINR, priceUSD: chosenSize.priceUSD, qty: 1 }];
+      return [...c, { ...product, cartId, format: chosenFormat, sizeLabel: chosenSize.label, sizeDims: chosenSize.dims, price: chosenSize.priceINR, priceUSD: chosenSize.priceUSD, qty: 1 }];
     });
-    showToast(`Added "${product.name}" (${chosenSize.label}) to cart`);
+    showToast(`Added "${product.name}" (${FORMAT_LABELS[chosenFormat] || chosenFormat} · ${chosenSize.label}) to cart`);
   }
 
   function updateQty(cartId, delta) {
@@ -1101,6 +1123,15 @@ export default function App() {
   // via the admin panel (e.g. "Psychedelic") — no code change needed.
   const categoryOptions = ["All", ...new Set(allProducts.map((p) => p.category))];
 
+  // Which formats the design currently open on the product page can be
+  // ordered in, and a shimmed copy of it reflecting whichever one is
+  // selected — lets sizesFor/defaultSizeFor/isTapestryFormat, all written
+  // against a single `product.format`, work unchanged as the format choice
+  // changes size options and pricing underneath it.
+  const availableFormats = viewProduct ? formatsFor(viewProduct) : [];
+  const effectiveFormat = selectedFormat || availableFormats[0];
+  const effectiveProduct = viewProduct ? withFormat(viewProduct, effectiveFormat) : null;
+
   // ---- Admin dashboard derived data ----
   const adminTotalRevenue = orders.reduce((s, o) => s + o.total, 0);
   const adminPendingSubs = submissions.filter((s) => s.status === "pending");
@@ -1153,7 +1184,9 @@ export default function App() {
   function openProduct(p) {
     setViewProduct(p);
     setActiveImg(0);
-    setSelectedSize(defaultSizeFor(p));
+    const firstFormat = formatsFor(p)[0];
+    setSelectedFormat(firstFormat);
+    setSelectedSize(defaultSizeFor(withFormat(p, firstFormat)));
     setPage("product");
     window.scrollTo(0, 0);
   }
@@ -1267,15 +1300,15 @@ export default function App() {
         @media (max-width: 900px) {
           .navlinks { display: none !important; }
           .hero-grid { grid-template-columns: 1fr !important; }
-          .prod-grid { grid-template-columns: repeat(2,1fr) !important; }
+          .prod-grid { grid-template-columns: repeat(3,1fr) !important; gap: 22px 18px !important; }
           .viz-grid { grid-template-columns: 1fr !important; }
           .tier-grid { grid-template-columns: 1fr !important; }
           .founder-grid { grid-template-columns: 1fr !important; text-align: center; }
           .trust-grid { grid-template-columns: repeat(2,1fr) !important; }
           .admin-stat-grid { grid-template-columns: repeat(2,1fr) !important; }
         }
-        @media (max-width: 520px) {
-          .prod-grid { grid-template-columns: 1fr !important; }
+        @media (max-width: 640px) {
+          .prod-grid { grid-template-columns: repeat(2,1fr) !important; gap: 18px 14px !important; }
         }
       `}</style>
 
@@ -1454,9 +1487,9 @@ export default function App() {
             ))}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 26 }} className="prod-grid">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "28px 24px" }} className="prod-grid">
             {filtered.map((p) => (
-              <ProductCard key={p.id} p={p} gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink={ink} priceFmt={fmtProduct} openProduct={openProduct} addToCart={addToCart} />
+              <ProductCard key={p.id} p={p} gold={gold} goldHi={goldHi} cream={cream} stone={stone} priceFmt={fmtProduct} openProduct={openProduct} />
             ))}
           </div>
 
@@ -1625,7 +1658,7 @@ export default function App() {
               {/* Gallery */}
               <div>
                 <div style={{ fontSize: 11, color: gold, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>{IMAGE_LABELS[activeImg]}</div>
-                <div style={{ border: `1px solid ${line}`, aspectRatio: "3/4", overflow: "hidden" }} className={`fade-up ${isTapestryFormat(viewProduct) ? "reveal-tapestry in-view" : "reveal-canvas in-view"}`} key={viewProduct.id}>
+                <div style={{ border: `1px solid ${line}`, aspectRatio: "3/4", overflow: "hidden" }} className={`fade-up ${effectiveFormat === "TAPESTRY" ? "reveal-tapestry in-view" : "reveal-canvas in-view"}`} key={viewProduct.id}>
                   <img src={viewProduct.images[activeImg]} alt={viewProduct.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
                 {viewProduct.images.length > 1 && (
@@ -1649,11 +1682,32 @@ export default function App() {
                 <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold }}>{viewProduct.category}</div>
                 <h1 style={{ fontSize: "clamp(1.8rem,3.2vw,2.4rem)", margin: "10px 0 12px" }}>{viewProduct.name}</h1>
 
+                {/* Format selector — only shown when a design actually offers more
+                    than one, so single-format designs (most of the catalog) don't
+                    get a pointless one-option picker. */}
+                {availableFormats.length > 1 && (
+                  <div style={{ marginBottom: 18 }}>
+                    <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: stone, marginBottom: 9 }}>Choose a format</div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {availableFormats.map((f) => (
+                        <button key={f} onClick={() => { setSelectedFormat(f); setSelectedSize(defaultSizeFor(withFormat(viewProduct, f))); }} disabled={viewProduct.sold} style={{
+                          padding: "9px 16px", cursor: viewProduct.sold ? "not-allowed" : "pointer",
+                          border: `1px solid ${effectiveFormat === f ? gold : line}`,
+                          background: effectiveFormat === f ? "rgba(201,162,75,0.1)" : "transparent",
+                          color: effectiveFormat === f ? goldHi : cream, fontSize: 12.5,
+                        }}>
+                          {FORMAT_LABELS[f] || f}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Size selector */}
                 <div style={{ marginBottom: 18 }}>
                   <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: stone, marginBottom: 9 }}>Choose a size</div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {sizesFor(viewProduct).map((s) => (
+                    {sizesFor(effectiveProduct).map((s) => (
                       <button key={s.label} onClick={() => setSelectedSize(s)} disabled={viewProduct.sold} style={{
                         textAlign: "left", padding: "10px 14px", cursor: viewProduct.sold ? "not-allowed" : "pointer",
                         border: `1px solid ${selectedSize?.label === s.label ? gold : line}`,
@@ -1666,11 +1720,11 @@ export default function App() {
                     ))}
                   </div>
                   <p style={{ fontSize: 10.5, color: stone, marginTop: 8, lineHeight: 1.5 }}>
-                    Still one of one — sizing changes the scale of this single piece, not how many exist.
+                    Still one of one — format and sizing change the scale and material of this single piece, not how many exist.
                   </p>
                 </div>
 
-                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, color: cream, marginBottom: 6 }}>{fmtTier(selectedSize || defaultSizeFor(viewProduct))}</div>
+                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, color: cream, marginBottom: 6 }}>{fmtTier(selectedSize || defaultSizeFor(effectiveProduct))}</div>
                 {viewProduct.sold ? (
                   <div style={{ fontSize: 12, color: goldHi, marginBottom: 18 }}>Sold — this one-of-one has found its home and will not be remade.</div>
                 ) : viewProduct.cartCount > 0 ? (
@@ -1681,11 +1735,12 @@ export default function App() {
                 {/* Specifications */}
                 <div style={{ marginBottom: 26, border: `1px solid ${line}` }}>
                   {[
-                    ["Size", (selectedSize || defaultSizeFor(viewProduct)).dims],
-                    ["Material", viewProduct.format === "tapestry" ? "Premium satin fabric" : "380 GSM canvas"],
-                    ["Finish", viewProduct.format === "tapestry" ? "Ready to hang" : "Stretched & framed"],
+                    ["Format", FORMAT_LABELS[effectiveFormat] || effectiveFormat],
+                    ["Size", (selectedSize || defaultSizeFor(effectiveProduct)).dims],
+                    ["Material", effectiveFormat === "TAPESTRY" ? "Premium satin fabric" : "380 GSM canvas"],
+                    ["Finish", effectiveFormat === "TAPESTRY" ? "Ready to hang" : "Stretched & framed"],
                     ["Production", "Made to order"],
-                    ["Dispatch", viewProduct.format === "tapestry" ? "3–5 business days" : "5–8 business days"],
+                    ["Dispatch", effectiveFormat === "TAPESTRY" ? "3–5 business days" : "5–8 business days"],
                     ["Delivery", "Pan-India"],
                   ].map(([label, value], i) => (
                     <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", borderTop: i === 0 ? "none" : `1px solid ${line}` }}>
@@ -1696,7 +1751,7 @@ export default function App() {
                 </div>
 
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                  <Btn disabled={viewProduct.sold} onClick={() => addToCart(viewProduct, selectedSize)}>{viewProduct.sold ? "Sold Out" : `Add to Cart — ${fmtTier(selectedSize || defaultSizeFor(viewProduct))}`}</Btn>
+                  <Btn disabled={viewProduct.sold} onClick={() => addToCart(viewProduct, effectiveFormat, selectedSize)}>{viewProduct.sold ? "Sold Out" : `Add to Cart — ${fmtTier(selectedSize || defaultSizeFor(effectiveProduct))}`}</Btn>
                   <Btn variant="ghost" onClick={() => { setPreviewDesignId(viewProduct.id); backToShop(); setTimeout(() => document.getElementById("visualizer").scrollIntoView({ behavior: "smooth" }), 60); }}>
                     Preview on My Wall
                   </Btn>
@@ -1783,9 +1838,9 @@ export default function App() {
             <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 20 }}>
               {viewArtist === "resembles.nothing studio" ? "House designs" : `Designs by ${viewArtist}`}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 26 }} className="prod-grid">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "28px 24px" }} className="prod-grid">
               {CATALOG.filter((p) => p.artist === viewArtist).map((p) => (
-                <ProductCard key={p.id} p={p} gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink={ink} priceFmt={fmtProduct} openProduct={openProduct} addToCart={addToCart} />
+                <ProductCard key={p.id} p={p} gold={gold} goldHi={goldHi} cream={cream} stone={stone} priceFmt={fmtProduct} openProduct={openProduct} />
               ))}
             </div>
           </div>
