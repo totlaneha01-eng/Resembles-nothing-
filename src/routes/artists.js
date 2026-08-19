@@ -13,9 +13,13 @@ router.post("/apply", requireAuth, async (req, res) => {
 });
 
 router.post("/submissions", requireAuth, requireArtist, async (req, res) => {
-  const { title, description, format, suggestedPrice, imageUrl } = req.body;
+  const { title, description, suggestedPrice, imageUrl } = req.body;
+  // A submission can propose more than one format (e.g. "I'd like this sold
+  // as both a Tapestry and a Canvas"); accept a legacy single `format` too.
+  const formats = Array.isArray(req.body.formats) && req.body.formats.length ? req.body.formats : req.body.format ? [req.body.format] : [];
+  const editionSize = Number.isInteger(req.body.editionSize) && req.body.editionSize > 0 ? req.body.editionSize : 1;
   const submission = await prisma.artistSubmission.create({
-    data: { artistId: req.user.id, title, description, format, suggestedPrice, imageUrl },
+    data: { artistId: req.user.id, title, description, formats, editionSize, suggestedPrice, imageUrl },
   });
   res.json({ submission });
 });
@@ -56,7 +60,8 @@ router.post("/submissions/:id/approve", requireAuth, requireAdmin, async (req, r
         description: submission.description,
         story: submission.description,
         features: req.body.features || [],
-        format: submission.format,
+        formats: submission.formats,
+        editionSize: submission.editionSize,
         artistId: submission.artistId,
         submissionId: submission.id,
       },
