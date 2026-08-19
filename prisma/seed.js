@@ -57,7 +57,7 @@ async function main() {
         category: p.category,
         price: p.price,
         widthCm: p.widthCm,
-        format: p.format,
+        formats: [p.format],
         blurb: p.blurb,
         description: p.blurb,
         story: p.blurb, // placeholder — copy the full story text from the frontend CATALOG constant

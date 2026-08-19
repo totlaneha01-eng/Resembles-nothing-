@@ -39,7 +39,7 @@ function slugify(name) {
   );
 }
 
-const REQUIRED_FIELDS = ["name", "category", "price", "widthCm", "format"];
+const REQUIRED_FIELDS = ["name", "category", "price", "widthCm"];
 const VALID_FORMATS = ["TAPESTRY", "CANVAS", "TRIPTYCH"];
 
 // Shared validation + defaulting for a single product payload, used by both
@@ -48,15 +48,25 @@ function prepareProductData(input) {
   const missing = REQUIRED_FIELDS.filter((f) => input[f] === undefined || input[f] === null || input[f] === "");
   if (missing.length) throw new Error(`Missing required field(s): ${missing.join(", ")}`);
 
-  const format = String(input.format).toUpperCase();
-  if (!VALID_FORMATS.includes(format)) {
-    throw new Error(`format must be one of ${VALID_FORMATS.join(", ")} (got "${input.format}")`);
-  }
+  // A design can be sold in more than one format (e.g. both Tapestry and
+  // Canvas) — accept `formats` (array) as the primary shape, but also take
+  // a single legacy `format` string so older callers don't break.
+  const rawFormats = Array.isArray(input.formats) && input.formats.length ? input.formats : input.format ? [input.format] : [];
+  if (rawFormats.length === 0) throw new Error("formats (array) or format is required");
+  const formats = rawFormats.map((f) => String(f).toUpperCase());
+  const invalid = formats.filter((f) => !VALID_FORMATS.includes(f));
+  if (invalid.length) throw new Error(`format must be one of ${VALID_FORMATS.join(", ")} (got "${invalid.join(", ")}")`);
 
   const price = Number(input.price);
   const widthCm = Number(input.widthCm);
   if (!Number.isFinite(price) || price <= 0) throw new Error("price must be a positive number (in paise)");
   if (!Number.isFinite(widthCm) || widthCm <= 0) throw new Error("widthCm must be a positive number");
+
+  let editionSize = 1;
+  if (input.editionSize !== undefined && input.editionSize !== null && input.editionSize !== "") {
+    editionSize = Number(input.editionSize);
+    if (!Number.isInteger(editionSize) || editionSize < 1) throw new Error("editionSize must be a whole number of 1 or more");
+  }
 
   const images = Array.isArray(input.images) && input.images.length ? input.images : input.imageUrl ? [input.imageUrl, input.imageUrl, input.imageUrl] : [];
   if (images.length === 0) throw new Error("images (array) or imageUrl is required");
@@ -72,7 +82,8 @@ function prepareProductData(input) {
     description: input.description || input.blurb || input.name,
     story: input.story || input.description || input.blurb || input.name,
     features: Array.isArray(input.features) ? input.features : [],
-    format,
+    formats,
+    editionSize,
     artistId: input.artistId || null,
   };
 }

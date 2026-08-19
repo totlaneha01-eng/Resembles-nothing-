@@ -68,16 +68,18 @@ model Product {
   slug        String        @unique
   name        String
   category    String
-  price       Int // in paise (₹1 = 100) to avoid float rounding on money
+  price       Int // in paise (₹1 = 100) — a reference/"from" price; the real per-order price comes from src/lib/pricing.js's format+size tiers
   widthCm     Int
   images      String[] // [far, close, exact] — matches the 3-image gallery in the frontend
   blurb       String
   description String        @db.Text
   story       String        @db.Text
   features    String[]
-  format      ProductFormat
-  status      ProductStatus @default(ACTIVE)
-  cartCount   Int           @default(0) // denormalized counter shown as social proof; recomputed by a cron, see src/lib/cartCount.js
+  formats     ProductFormat[] // which formats this design can be ordered in — e.g. a design might be offered as both Tapestry and Canvas
+  editionSize Int             @default(1) // total pieces sellable across ALL formats/sizes combined — 1 = true one-of-one, set higher for a limited run
+  unitsSold   Int             @default(0) // status flips to SOLD once this reaches editionSize (not wired to checkout yet — see src/routes/orders.js)
+  status      ProductStatus   @default(ACTIVE)
+  cartCount   Int             @default(0) // denormalized counter shown as social proof; recomputed by a cron, see src/lib/cartCount.js
   soldAt      DateTime?
 
   artistId String? // null = house design, made by the resembles.nothing studio
@@ -111,7 +113,8 @@ model ArtistSubmission {
   artist         User             @relation(fields: [artistId], references: [id])
   title          String
   description    String           @db.Text
-  format         ProductFormat
+  formats        ProductFormat[]
+  editionSize    Int              @default(1) // how many total pieces the artist wants to make of this design
   suggestedPrice Int
   imageUrl       String
   status         SubmissionStatus @default(PENDING)
@@ -124,25 +127,28 @@ model ArtistSubmission {
 }
 
 // ---------- Cart & Orders ----------
-// Every cart/order line is tied to a specific size tier — not just a product —
-// since the frontend lets buyers pick Signature/Grand/Monument (tapestry),
-// Window/Gateway/Portal/Realm (canvas), etc., each at its own INR and USD
-// price. See src/lib/pricing.js for the tier tables these prices come from.
+// Every cart/order line is tied to a specific format + size tier — not just a
+// product — since a design can be offered in more than one format (see
+// Product.formats), and within a format the frontend lets buyers pick
+// Signature/Grand/Monument (tapestry), Window/Gateway/Portal/Realm (canvas),
+// etc., each at its own INR and USD price. See src/lib/pricing.js for the
+// tier tables these prices come from.
 
 model CartItem {
-  id        String   @id @default(uuid())
+  id        String        @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User          @relation(fields: [userId], references: [id])
   productId String
-  product   Product  @relation(fields: [productId], references: [id])
+  product   Product       @relation(fields: [productId], references: [id])
+  format    ProductFormat // which of the design's available formats was picked
   sizeLabel String // "Signature" | "Grand" | "Monument" | "Window" | "Gateway" | "Portal" | "Realm"
   sizeDims  String // "70 × 100 cm"
   priceINR  Int // the actual amount charged, in INR — this is what Razorpay bills
   priceUSD  Int // shown for reference only when the shopper has USD display mode on
-  qty       Int      @default(1)
-  createdAt DateTime @default(now())
+  qty       Int           @default(1)
+  createdAt DateTime      @default(now())
 
-  @@unique([userId, productId, sizeLabel])
+  @@unique([userId, productId, format, sizeLabel])
 }
 
 enum OrderStatus {
@@ -193,6 +199,7 @@ model OrderItem {
   order              Order        @relation(fields: [orderId], references: [id])
   productId          String
   product             Product     @relation(fields: [productId], references: [id])
+  format             ProductFormat
   sizeLabel          String
   sizeDims           String
   priceINR           Int // actual amount charged for this line, in INR

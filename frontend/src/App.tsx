@@ -221,7 +221,15 @@ const PLACEHOLDER_IMG =
 // every existing feature (cards, product detail, quiz, etc.) that was built
 // against CATALOG works identically for real, admin-added products too.
 function normalizeDbProduct(p) {
-  const formatLabel = { TAPESTRY: "Tapestry", CANVAS: "Canvas", TRIPTYCH: "Triptych" }[p.format] || p.format;
+  // A design can now be offered in more than one format (Product.formats is
+  // an array), but the card/detail UI below still only shows one at a time —
+  // that multi-format picker is a separate, bigger piece of work waiting on
+  // the real per-format/size price table. Until then, show the first
+  // available format; `formats`/`editionSize`/`unitsSold` ride along on the
+  // object for when that picker gets built, so nothing has to be re-fetched.
+  const formats = Array.isArray(p.formats) && p.formats.length ? p.formats : ["CANVAS"];
+  const primaryFormat = formats[0];
+  const formatLabel = { TAPESTRY: "Tapestry", CANVAS: "Canvas", TRIPTYCH: "Triptych" }[primaryFormat] || primaryFormat;
   const images = Array.isArray(p.images) && p.images.length ? p.images : [PLACEHOLDER_IMG, PLACEHOLDER_IMG, PLACEHOLDER_IMG];
   return {
     id: p.slug,
@@ -230,7 +238,10 @@ function normalizeDbProduct(p) {
     category: p.category,
     price: Math.round(p.price / 100), // paise -> rupees
     size: `${p.widthCm} cm · ${formatLabel}`,
-    format: (p.format || "").toLowerCase(),
+    format: (primaryFormat || "").toLowerCase(),
+    formats,
+    editionSize: p.editionSize ?? 1,
+    unitsSold: p.unitsSold ?? 0,
     widthCm: p.widthCm,
     images,
     blurb: p.blurb,
@@ -621,7 +632,7 @@ function IntroSplash({ onDone }) {
 // (POST /api/products and /api/products/bulk), unlike the rest of the admin
 // dashboard which is still session-only preview data.
 function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOptions, onAdded }) {
-  const [single, setSingle] = useState({ name: "", category: "", price: "", widthCm: "", format: "CANVAS", imageUrl: "", blurb: "" });
+  const [single, setSingle] = useState({ name: "", category: "", price: "", widthCm: "", formats: ["CANVAS"], editionSize: "1", imageUrl: "", blurb: "" });
   const [singleBusy, setSingleBusy] = useState(false);
   const [singleMsg, setSingleMsg] = useState("");
   const [singleOk, setSingleOk] = useState(false);
@@ -639,6 +650,7 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
     setSingleBusy(true);
     setSingleMsg("");
     try {
+      if (single.formats.length === 0) throw new ApiError("Pick at least one format.", 400);
       await apiFetch("/products", {
         method: "POST",
         body: JSON.stringify({
@@ -646,14 +658,15 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
           category: single.category,
           price: Math.round(Number(single.price) * 100), // rupees -> paise, backend stores paise
           widthCm: Number(single.widthCm),
-          format: single.format,
+          formats: single.formats,
+          editionSize: Number(single.editionSize) || 1,
           imageUrl: single.imageUrl,
           blurb: single.blurb,
         }),
       });
       setSingleOk(true);
       setSingleMsg(`Added "${single.name}".`);
-      setSingle((s) => ({ name: "", category: s.category, price: "", widthCm: "", format: s.format, imageUrl: "", blurb: "" }));
+      setSingle((s) => ({ name: "", category: s.category, price: "", widthCm: "", formats: s.formats, editionSize: s.editionSize, imageUrl: "", blurb: "" }));
       onAdded();
     } catch (err) {
       setSingleOk(false);
@@ -715,12 +728,25 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
             </div>
           </div>
 
-          <label style={labelStyle}>Format</label>
-          <select style={inputStyle} value={single.format} onChange={(e) => setSingle((s) => ({ ...s, format: e.target.value }))}>
-            <option value="TAPESTRY">Tapestry</option>
-            <option value="CANVAS">Canvas</option>
-            <option value="TRIPTYCH">Triptych</option>
-          </select>
+          <label style={labelStyle}>Available as — pick one or more</label>
+          <div style={{ display: "flex", gap: 16, marginBottom: 10 }}>
+            {[["TAPESTRY", "Tapestry"], ["CANVAS", "Canvas"], ["TRIPTYCH", "Split canvas"]].map(([val, label]) => (
+              <label key={val} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: cream, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={single.formats.includes(val)}
+                  onChange={(e) => setSingle((s) => ({
+                    ...s,
+                    formats: e.target.checked ? [...s.formats, val] : s.formats.filter((f) => f !== val),
+                  }))}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+
+          <label style={labelStyle}>Edition size — how many pieces total can ever sell (across any format/size). Leave at 1 for true one-of-one.</label>
+          <input type="number" min="1" style={inputStyle} value={single.editionSize} onChange={(e) => setSingle((s) => ({ ...s, editionSize: e.target.value }))} />
 
           <label style={labelStyle}>Image URL</label>
           <input required type="url" placeholder="https://…" style={inputStyle} value={single.imageUrl} onChange={(e) => setSingle((s) => ({ ...s, imageUrl: e.target.value }))} />
@@ -735,11 +761,11 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
         <div style={{ border: `1px solid ${line}`, padding: 20 }}>
           <div style={{ fontSize: 13, color: cream, marginBottom: 6 }}>Bulk add — paste a JSON array</div>
           <p style={{ fontSize: 11, color: stone, marginBottom: 12, lineHeight: 1.5 }}>
-            One object per design: <code>name, category, price</code> (in ₹), <code>widthCm, format</code> (TAPESTRY / CANVAS / TRIPTYCH), <code>imageUrl, blurb</code>. Partial batches are fine — anything that fails is reported below without blocking the rest.
+            One object per design: <code>name, category, price</code> (in ₹), <code>widthCm, formats</code> (array — any of TAPESTRY / CANVAS / TRIPTYCH), <code>imageUrl, blurb</code>. <code>editionSize</code> is optional (defaults to 1 — true one-of-one). Partial batches are fine — anything that fails is reported below without blocking the rest.
           </p>
           <textarea
             style={{ ...inputStyle, height: 190, fontFamily: "monospace", fontSize: 11.5, resize: "vertical" }}
-            placeholder={'[\n  {\n    "name": "Neon Bloom",\n    "category": "Psychedelic",\n    "price": 4999,\n    "widthCm": 30,\n    "format": "CANVAS",\n    "imageUrl": "https://…",\n    "blurb": "Colour that argues back."\n  }\n]'}
+            placeholder={'[\n  {\n    "name": "Neon Bloom",\n    "category": "Psychedelic",\n    "price": 4999,\n    "widthCm": 30,\n    "formats": ["CANVAS", "TAPESTRY"],\n    "editionSize": 1,\n    "imageUrl": "https://…",\n    "blurb": "Colour that argues back."\n  }\n]'}
             value={bulkText}
             onChange={(e) => setBulkText(e.target.value)}
           />
