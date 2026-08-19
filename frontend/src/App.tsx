@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { apiFetch, ApiError, getToken, setToken, clearToken } from "./api";
 
 const IMG = {
   logo: "data:image/jpeg;base64,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",
@@ -207,6 +208,42 @@ function currency(n) {
   return "₹" + n.toLocaleString("en-IN");
 }
 
+// Shown when a product's real image hasn't been uploaded yet (e.g. the old
+// seed data, which points at /uploads/ paths that were never real files).
+const PLACEHOLDER_IMG =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='500'%3E%3Crect width='100%25' height='100%25' fill='%23141311'/%3E%3Ctext x='50%25' y='50%25' fill='%23948c78' font-family='sans-serif' font-size='16' text-anchor='middle' dominant-baseline='middle'%3EImage coming soon%3C/text%3E%3C/svg%3E";
+
+// The backend's Product shape (schema.prisma) and this prototype's hardcoded
+// CATALOG shape don't match 1:1 — most notably price is stored in paise on
+// the backend but CATALOG's numbers are whole rupees, and format is an
+// uppercase enum on the backend vs lowercase strings here. This normalizes a
+// row from GET /api/products into exactly the shape CATALOG items use, so
+// every existing feature (cards, product detail, quiz, etc.) that was built
+// against CATALOG works identically for real, admin-added products too.
+function normalizeDbProduct(p) {
+  const formatLabel = { TAPESTRY: "Tapestry", CANVAS: "Canvas", TRIPTYCH: "Triptych" }[p.format] || p.format;
+  const images = Array.isArray(p.images) && p.images.length ? p.images : [PLACEHOLDER_IMG, PLACEHOLDER_IMG, PLACEHOLDER_IMG];
+  return {
+    id: p.slug,
+    dbId: p.id,
+    name: p.name,
+    category: p.category,
+    price: Math.round(p.price / 100), // paise -> rupees
+    size: `${p.widthCm} cm · ${formatLabel}`,
+    format: (p.format || "").toLowerCase(),
+    widthCm: p.widthCm,
+    images,
+    blurb: p.blurb,
+    desc: p.description,
+    story: p.story,
+    features: p.features || [],
+    cartCount: p.cartCount || 0,
+    sold: p.status === "SOLD",
+    artist: p.artist?.name || "resembles.nothing studio",
+    fromDb: true,
+  };
+}
+
 function Eyebrow({ children }) {
   return <span className="eyebrow">{children}</span>;
 }
@@ -358,7 +395,7 @@ function ProductCard({ p, gold, goldHi, cream, stone, line, ink, priceFmt, openP
         <div style={{ position: "absolute", top: 12, left: 12, zIndex: 2, background: ink, border: `1px solid ${gold}`, color: goldHi, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", padding: "5px 10px" }}>Sold — one of one</div>
       )}
       <div onClick={() => openProduct(p)} style={{ aspectRatio: "3/4", overflow: "hidden", cursor: "pointer" }}>
-        <img src={p.images[0]} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <img src={p.images[0]} alt={p.name} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       </div>
       <div style={{ padding: 18 }}>
         <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold }}>{p.category}</div>
@@ -580,6 +617,150 @@ function IntroSplash({ onDone }) {
   );
 }
 
+// Real admin tooling — everything here calls the live backend
+// (POST /api/products and /api/products/bulk), unlike the rest of the admin
+// dashboard which is still session-only preview data.
+function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOptions, onAdded }) {
+  const [single, setSingle] = useState({ name: "", category: "", price: "", widthCm: "", format: "CANVAS", imageUrl: "", blurb: "" });
+  const [singleBusy, setSingleBusy] = useState(false);
+  const [singleMsg, setSingleMsg] = useState("");
+  const [singleOk, setSingleOk] = useState(false);
+
+  const [bulkText, setBulkText] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkResults, setBulkResults] = useState(null);
+  const [bulkError, setBulkError] = useState("");
+
+  const inputStyle = { width: "100%", background: ink2, border: `1px solid ${line}`, color: cream, fontSize: 13, padding: "10px 12px", marginBottom: 10, fontFamily: "'Jost', sans-serif" };
+  const labelStyle = { fontSize: 11, color: stone, marginBottom: 4, display: "block" };
+
+  async function submitSingle(e) {
+    e.preventDefault();
+    setSingleBusy(true);
+    setSingleMsg("");
+    try {
+      await apiFetch("/products", {
+        method: "POST",
+        body: JSON.stringify({
+          name: single.name,
+          category: single.category,
+          price: Math.round(Number(single.price) * 100), // rupees -> paise, backend stores paise
+          widthCm: Number(single.widthCm),
+          format: single.format,
+          imageUrl: single.imageUrl,
+          blurb: single.blurb,
+        }),
+      });
+      setSingleOk(true);
+      setSingleMsg(`Added "${single.name}".`);
+      setSingle((s) => ({ name: "", category: s.category, price: "", widthCm: "", format: s.format, imageUrl: "", blurb: "" }));
+      onAdded();
+    } catch (err) {
+      setSingleOk(false);
+      setSingleMsg(err instanceof ApiError ? err.message : "Something went wrong — try again.");
+    } finally {
+      setSingleBusy(false);
+    }
+  }
+
+  async function submitBulk() {
+    setBulkBusy(true);
+    setBulkError("");
+    setBulkResults(null);
+    let products;
+    try {
+      products = JSON.parse(bulkText);
+      if (!Array.isArray(products)) throw new Error("must be a JSON array");
+    } catch (err) {
+      setBulkError("Couldn't parse that as JSON — " + err.message);
+      setBulkBusy(false);
+      return;
+    }
+    const withPaise = products.map((p) => (p && p.price != null ? { ...p, price: Math.round(Number(p.price) * 100) } : p));
+    try {
+      const data = await apiFetch("/products/bulk", { method: "POST", body: JSON.stringify({ products: withPaise }) });
+      setBulkResults(data);
+      if (data.created > 0) onAdded();
+    } catch (err) {
+      setBulkError(err instanceof ApiError ? err.message : "Something went wrong — try again.");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  return (
+    <div style={{ marginBottom: 44 }}>
+      <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Add Products</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 30 }} className="viz-grid">
+        <form onSubmit={submitSingle} style={{ border: `1px solid ${line}`, padding: 20 }}>
+          <div style={{ fontSize: 13, color: cream, marginBottom: 14 }}>Add one design</div>
+
+          <label style={labelStyle}>Name</label>
+          <input required style={inputStyle} value={single.name} onChange={(e) => setSingle((s) => ({ ...s, name: e.target.value }))} />
+
+          <label style={labelStyle}>Category — type any name, new ones (e.g. "Psychedelic") just work</label>
+          <input required list="category-suggestions" style={inputStyle} value={single.category} onChange={(e) => setSingle((s) => ({ ...s, category: e.target.value }))} />
+          <datalist id="category-suggestions">
+            {categoryOptions.filter((c) => c !== "All").map((c) => <option key={c} value={c} />)}
+          </datalist>
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>Price (₹)</label>
+              <input required type="number" min="1" style={inputStyle} value={single.price} onChange={(e) => setSingle((s) => ({ ...s, price: e.target.value }))} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>Width (cm)</label>
+              <input required type="number" min="1" style={inputStyle} value={single.widthCm} onChange={(e) => setSingle((s) => ({ ...s, widthCm: e.target.value }))} />
+            </div>
+          </div>
+
+          <label style={labelStyle}>Format</label>
+          <select style={inputStyle} value={single.format} onChange={(e) => setSingle((s) => ({ ...s, format: e.target.value }))}>
+            <option value="TAPESTRY">Tapestry</option>
+            <option value="CANVAS">Canvas</option>
+            <option value="TRIPTYCH">Triptych</option>
+          </select>
+
+          <label style={labelStyle}>Image URL</label>
+          <input required type="url" placeholder="https://…" style={inputStyle} value={single.imageUrl} onChange={(e) => setSingle((s) => ({ ...s, imageUrl: e.target.value }))} />
+
+          <label style={labelStyle}>Blurb (short tagline)</label>
+          <input style={inputStyle} value={single.blurb} onChange={(e) => setSingle((s) => ({ ...s, blurb: e.target.value }))} />
+
+          <Btn full type="submit" disabled={singleBusy} style={{ marginTop: 4 }}>{singleBusy ? "Adding…" : "Add Design"}</Btn>
+          {singleMsg && <p style={{ fontSize: 12, color: singleOk ? goldHi : "#c9524b", marginTop: 10 }}>{singleMsg}</p>}
+        </form>
+
+        <div style={{ border: `1px solid ${line}`, padding: 20 }}>
+          <div style={{ fontSize: 13, color: cream, marginBottom: 6 }}>Bulk add — paste a JSON array</div>
+          <p style={{ fontSize: 11, color: stone, marginBottom: 12, lineHeight: 1.5 }}>
+            One object per design: <code>name, category, price</code> (in ₹), <code>widthCm, format</code> (TAPESTRY / CANVAS / TRIPTYCH), <code>imageUrl, blurb</code>. Partial batches are fine — anything that fails is reported below without blocking the rest.
+          </p>
+          <textarea
+            style={{ ...inputStyle, height: 190, fontFamily: "monospace", fontSize: 11.5, resize: "vertical" }}
+            placeholder={'[\n  {\n    "name": "Neon Bloom",\n    "category": "Psychedelic",\n    "price": 4999,\n    "widthCm": 30,\n    "format": "CANVAS",\n    "imageUrl": "https://…",\n    "blurb": "Colour that argues back."\n  }\n]'}
+            value={bulkText}
+            onChange={(e) => setBulkText(e.target.value)}
+          />
+          <Btn full disabled={bulkBusy || !bulkText.trim()} onClick={submitBulk} style={{ marginTop: 4 }}>{bulkBusy ? "Adding…" : "Add All"}</Btn>
+          {bulkError && <p style={{ fontSize: 12, color: "#c9524b", marginTop: 10 }}>{bulkError}</p>}
+          {bulkResults && (
+            <div style={{ marginTop: 12, fontSize: 12 }}>
+              <div style={{ color: goldHi, marginBottom: 6 }}>{bulkResults.created} added, {bulkResults.failed} failed.</div>
+              {bulkResults.results.filter((r) => !r.success).map((r) => (
+                <div key={r.index} style={{ color: "#c9524b", fontSize: 11, marginBottom: 4 }}>
+                  #{r.index + 1}{r.name ? ` "${r.name}"` : ""}: {r.error}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [page, setPage] = useState("shop"); // "shop" | "product" | "artist" | "admin"
   const [viewArtist, setViewArtist] = useState(null);
@@ -612,6 +793,30 @@ export default function App() {
   const [category, setCategory] = useState("All");
   const [currencyMode, setCurrencyMode] = useState("INR"); // "INR" | "USD"
   const [showIntro, setShowIntro] = useState(true);
+  const [dbProducts, setDbProducts] = useState([]);
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+
+  function refetchProducts() {
+    apiFetch("/products")
+      .then((data) => setDbProducts((data.products || []).map(normalizeDbProduct)))
+      .catch(() => {
+        // Shop still works off the built-in CATALOG if the API's unreachable.
+      });
+  }
+
+  // Load real products from the database on mount, and restore a logged-in
+  // session from a stored token, if any.
+  useEffect(() => {
+    refetchProducts();
+
+    const token = getToken();
+    if (token) {
+      apiFetch("/auth/me")
+        .then((data) => setUser(data.user))
+        .catch(() => clearToken());
+    }
+  }, []);
 
   // Formats a size tier's price in whichever currency is currently selected.
   // USD figures are your real USA retail prices, not a live conversion.
@@ -664,16 +869,34 @@ export default function App() {
     setNotifs((n) => n.map((x) => ({ ...x, read: true })));
   }
 
-  function handleAuth(e) {
+  async function handleAuth(e) {
     e.preventDefault();
+    setAuthError("");
     const form = new FormData(e.target);
-    const name = form.get("name") || form.get("email")?.toString().split("@")[0] || "Friend";
-    setUser({ name, email: form.get("email") });
-    setShowLogin(false);
-    showToast(`Signed in as ${name}`);
+    const payload = {
+      name: form.get("name"),
+      email: form.get("email"),
+      password: form.get("password"),
+    };
+    setAuthLoading(true);
+    try {
+      const data = await apiFetch(authMode === "login" ? "/auth/login" : "/auth/signup", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      setToken(data.token);
+      setUser(data.user);
+      setShowLogin(false);
+      showToast(`Signed in as ${data.user.name}`);
+    } catch (err) {
+      setAuthError(err instanceof ApiError ? err.message : "Something went wrong — try again.");
+    } finally {
+      setAuthLoading(false);
+    }
   }
 
   function logout() {
+    clearToken();
     setUser(null);
     setShowAccount(false);
     showToast("Signed out");
@@ -812,7 +1035,15 @@ export default function App() {
     }
   }
 
-  const filtered = category === "All" ? CATALOG : CATALOG.filter((p) => p.category === category);
+  // Real, admin-added products first, then the built-in catalog — so a
+  // freshly added design shows up immediately without needing anything else
+  // to change. dbProducts is empty until the backend has real rows in it.
+  const allProducts = [...dbProducts, ...CATALOG];
+  const filtered = category === "All" ? allProducts : allProducts.filter((p) => p.category === category);
+
+  // Category filter options grow automatically as new categories get added
+  // via the admin panel (e.g. "Psychedelic") — no code change needed.
+  const categoryOptions = ["All", ...new Set(allProducts.map((p) => p.category))];
 
   // ---- Admin dashboard derived data ----
   const adminTotalRevenue = orders.reduce((s, o) => s + o.total, 0);
@@ -1159,7 +1390,7 @@ export default function App() {
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", marginBottom: 40 }}>
-            {CATEGORIES.map((c) => (
+            {categoryOptions.map((c) => (
               <div key={c} className="cat-chip" onClick={() => setCategory(c)} style={{
                 padding: "9px 20px", border: `1px solid ${c === category ? gold : line}`,
                 color: c === category ? goldHi : stone, fontSize: 13
@@ -1514,9 +1745,27 @@ export default function App() {
             </button>
 
             <h1 style={{ fontSize: "clamp(1.8rem,3.2vw,2.4rem)", marginBottom: 10 }}>Admin Dashboard</h1>
+
+            {!user?.isAdmin ? (
+              <div style={{ border: `1px solid ${line}`, padding: "34px 24px", textAlign: "center" }}>
+                <p style={{ fontSize: 13.5, color: cream, marginBottom: 6 }}>
+                  {user ? "This account doesn't have admin access." : "Admin access required."}
+                </p>
+                <p style={{ fontSize: 12, color: stone, marginBottom: 18 }}>
+                  {user ? "Sign in with an admin account to manage products." : "Sign in with an admin account to add and manage products."}
+                </p>
+                <Btn onClick={() => setShowLogin(true)}>{user ? "Switch Account" : "Log In"}</Btn>
+              </div>
+            ) : (
+            <>
             <div style={{ border: `1px solid ${gold}`, background: "rgba(201,162,75,0.08)", padding: "12px 16px", fontSize: 11.5, color: goldHi, marginBottom: 36, lineHeight: 1.6 }}>
-              ⚠ Preview only. Orders, submissions, and cart counts below reflect this browser session — they're real, but limited to what's happened here. In production this page reads from your live database via the <code>/api/admin/dashboard</code> endpoint (see the backend build), and would be restricted to admin accounts only.
+              ⚠ Orders, submissions, and cart counts below reflect this browser session, not your real database yet — Add Products just below is real, everything else here is still preview.
             </div>
+
+            <AddProductsPanel
+              gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink2={ink2}
+              categoryOptions={categoryOptions} onAdded={refetchProducts}
+            />
 
             {/* Stat cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 14, marginBottom: 44 }} className="admin-stat-grid">
@@ -1625,6 +1874,8 @@ export default function App() {
                 ))}
               </div>
             </div>
+            </>
+            )}
           </div>
         </section>
       )}
@@ -1719,7 +1970,8 @@ export default function App() {
             {authMode === "signup" && <Field label="Name" name="name" placeholder="Your name" required />}
             <Field label="Email" name="email" type="email" placeholder="you@email.com" required />
             <Field label="Password" name="password" type="password" placeholder="••••••••" required />
-            <Btn full type="submit" style={{ marginTop: 6 }}>{authMode === "login" ? "Log In" : "Sign Up"}</Btn>
+            {authError && <p style={{ color: "#c9524b", fontSize: 12, marginTop: 4 }}>{authError}</p>}
+            <Btn full type="submit" disabled={authLoading} style={{ marginTop: 6 }}>{authLoading ? "…" : authMode === "login" ? "Log In" : "Sign Up"}</Btn>
           </form>
           <div style={{ textAlign: "center", marginTop: 18, fontSize: 12.5, color: stone }}>
             {authMode === "login" ? (
