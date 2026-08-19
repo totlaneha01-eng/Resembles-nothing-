@@ -4,6 +4,10 @@
 //
 //   node scripts/make-admin.js you@example.com
 //
+// No Shell tab on your plan? Render's Shell is paid-instance-only. Use the
+// ADMIN_BOOTSTRAP_EMAIL environment variable instead (src/index.js) — set it
+// in the free Environment tab and redeploy; same effect, no Shell needed.
+//
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 

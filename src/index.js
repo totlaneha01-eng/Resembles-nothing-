@@ -2,6 +2,7 @@ require("dotenv").config();
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
+const prisma = require("./lib/prisma");
 
 const app = express();
 app.use(cors());
@@ -44,6 +45,33 @@ app.use((err, req, res, next) => {
 process.on("unhandledRejection", (reason) => {
   console.error("Unhandled promise rejection (server kept running):", reason);
 });
+
+// Admin bootstrap without Shell access — Render's Shell tab is a paid-plan
+// feature, so `node scripts/make-admin.js <email>` isn't runnable on a free
+// service. This gives the same result from the (free-tier) Environment tab
+// instead: set ADMIN_BOOTSTRAP_EMAIL to the account's email and redeploy
+// (Render redeploys automatically on an env var change) — on boot, if a user
+// with that exact email exists and isn't already an admin, it's promoted.
+// Safe to leave set permanently: it only ever matches one account (whoever
+// controls the Render dashboard chose that email) and no-ops once that
+// account is already an admin.
+async function bootstrapAdminFromEnv() {
+  const email = process.env.ADMIN_BOOTSTRAP_EMAIL;
+  if (!email) return;
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      console.log(`Admin bootstrap: no account found for ${email} yet — sign up first, then redeploy.`);
+      return;
+    }
+    if (user.isAdmin) return;
+    await prisma.user.update({ where: { email }, data: { isAdmin: true } });
+    console.log(`Admin bootstrap: ${email} is now an admin.`);
+  } catch (err) {
+    console.error("Admin bootstrap failed (server still starting normally):", err.message);
+  }
+}
+bootstrapAdminFromEnv();
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`resembles.nothing API running on :${PORT}`));
