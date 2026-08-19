@@ -109,11 +109,12 @@ const IMAGE_LABELS = ["From across the room", "Up close", "True to design"];
 
 const ARTIST_COMMISSION_PCT = 30; // example split — adjust to whatever you decide to offer artists
 
-const REVIEWS = [
-  { name: "Ananya, Bengaluru", rating: 5, text: "The tapestry looked exactly like the photos — genuinely didn't expect the colours to be this rich. Shipped fast too." },
-  { name: "Rohan, Pune", rating: 5, text: "Ordered the Krishna triptych for my living room. Framing feels premium, not the flimsy canvas I was bracing for." },
-  { name: "Meher, Delhi", rating: 4, text: "Loved that mine's a one-of-one — knowing no one else has the exact same piece makes it feel worth the price." },
-];
+// No orders have shipped yet, so there are no real reviews to show — keep
+// this empty rather than fabricating names/quotes. The Reviews component
+// below renders an honest "no reviews yet" state when this is empty, and
+// the backend's /api/reviews (Review model in schema.prisma) already
+// supports populating this for real once orders start getting delivered.
+const REVIEWS: { name: string; rating: number; text: string }[] = [];
 
 const ORDER_STEPS = ["Order placed", "Being made", "Packed", "Shipped", "Out for delivery", "Delivered"];
 
@@ -167,13 +168,16 @@ const TRUST_BADGES = [
   { icon: "🔒", label: "Secure prepaid checkout", sub: "Powered by Razorpay" },
   { icon: "🖋️", label: "Founder-backed", sub: "A real person stands behind every order" },
   { icon: "📦", label: "Made & shipped, tracked", sub: "Updates sent straight to your DMs" },
-  { icon: "★", label: "Verified customer reviews", sub: "From real, delivered orders" },
+  { icon: "🎨", label: "One-of-one, always", sub: "Every design retired the moment it sells" },
 ];
 
+// Placeholder slots for real unboxing/review videos once orders start
+// shipping — intentionally not attributed to named people, since none
+// exist yet. Swap these out for real footage + real names as they come in.
 const VIDEO_TESTIMONIALS = [
-  { name: "Priya S.", note: "Unboxing her Monument tapestry" },
-  { name: "Kabir M.", note: "Living room reveal" },
-  { name: "Ishita R.", note: "Canvas close-up + packaging" },
+  { name: "Video review", note: "Coming as orders ship" },
+  { name: "Video review", note: "Coming as orders ship" },
+  { name: "Video review", note: "Coming as orders ship" },
 ];
 
 function Stars({ n }) {
@@ -298,15 +302,21 @@ function Reviews({ stone, gold, cream, line, compact }) {
       <div style={{ textAlign: "center", marginBottom: compact ? 20 : 30 }}>
         <Eyebrow>What People Are Saying</Eyebrow>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "repeat(3,1fr)", gap: 20 }}>
-        {REVIEWS.map((r, i) => (
-          <div key={i} style={{ border: `1px solid ${line}`, padding: 22 }}>
-            <Stars n={r.rating} />
-            <p style={{ fontSize: 13, color: cream, lineHeight: 1.6, margin: "10px 0 12px" }}>"{r.text}"</p>
-            <div style={{ fontSize: 11, color: stone }}>{r.name}</div>
-          </div>
-        ))}
-      </div>
+      {REVIEWS.length > 0 ? (
+        <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "repeat(3,1fr)", gap: 20 }}>
+          {REVIEWS.map((r, i) => (
+            <div key={i} style={{ border: `1px solid ${line}`, padding: 22 }}>
+              <Stars n={r.rating} />
+              <p style={{ fontSize: 13, color: cream, lineHeight: 1.6, margin: "10px 0 12px" }}>"{r.text}"</p>
+              <div style={{ fontSize: 11, color: stone }}>{r.name}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ textAlign: "center", fontSize: 13, color: stone, padding: "12px 0" }}>
+          No reviews yet — every piece here is new. Yours could be the first.
+        </div>
+      )}
     </div>
   );
 }
@@ -880,8 +890,8 @@ export default function App() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&family=Caveat:wght@600;700&display=swap');
         * { box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
-        body { -webkit-font-smoothing: antialiased; }
+        html { scroll-behavior: smooth; overflow-x: hidden; }
+        body { -webkit-font-smoothing: antialiased; overflow-x: hidden; }
         h1,h2,h3 { font-family: 'Cormorant Garamond', serif; font-weight: 500; margin:0; letter-spacing: 0.005em; }
         p { margin: 0; }
         ::selection { background: #c9a24b; color: #0a0a09; }
@@ -1066,7 +1076,7 @@ export default function App() {
               <Btn variant="ghost" onClick={() => document.getElementById("visualizer").scrollIntoView({ behavior: "smooth" })}>See It On Your Wall</Btn>
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 30, flexWrap: "wrap" }}>
-              {["🔒 Secure prepaid checkout", "🖋️ Founder-backed brand", "★ Real customer reviews"].map((t) => (
+              {["🔒 Secure prepaid checkout", "🖋️ Founder-backed brand", "🎨 One-of-one, always"].map((t) => (
                 <span key={t} style={{ fontSize: 11, color: stone, border: `1px solid ${line}`, padding: "7px 12px" }}>{t}</span>
               ))}
             </div>
