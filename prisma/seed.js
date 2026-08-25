@@ -33,6 +33,8 @@ const PRODUCTS = [
   { slug: "rose-gold-tiger", name: "Rose Gold Tiger", category: "Abstract", price: 4999, widthCm: 30, format: "CANVAS", blurb: "Softer palette, same amount of don't-test-me.", artist: "Kabir Rao" },
   { slug: "minding-my-own-business", name: "Minding My Own Business", category: "Motivation", price: 1499, widthCm: 100, format: "TAPESTRY", blurb: "Busy minding my own damn business.", artist: null },
   { slug: "watch-me-not-explain", name: "Watch Me Not Explain", category: "Motivation", price: 1499, widthCm: 100, format: "TAPESTRY", blurb: "Some people ask permission. She asks for the bottle.", artist: null },
+  { slug: "architecture-of-chaos", name: "The Architecture of Chaos", category: "Motivation", price: 1499, widthCm: 100, formats: ["TAPESTRY", "CANVAS"], blurb: "Newsprint, noise, and one face refusing to look away.", artist: null, images: ["/products/architecture-of-chaos.png", "/products/architecture-of-chaos.png", "/products/architecture-of-chaos.png"] },
+  { slug: "staircase-within", name: "The Staircase Within", category: "Motivation", price: 1499, widthCm: 100, formats: ["TAPESTRY", "CANVAS"], blurb: "A mind with a staircase in it. Take it or don't.", artist: null, images: ["/products/staircase-within.png", "/products/staircase-within.png", "/products/staircase-within.png"] },
 ];
 
 async function main() {
@@ -57,12 +59,12 @@ async function main() {
         category: p.category,
         price: p.price,
         widthCm: p.widthCm,
-        formats: [p.format],
+        formats: p.formats || [p.format],
         blurb: p.blurb,
         description: p.blurb,
         story: p.blurb, // placeholder — copy the full story text from the frontend CATALOG constant
-        features: p.format === "TAPESTRY" || p.format === "TRIPTYCH" ? FABRIC_FEATURES : CANVAS_FEATURES,
-        images: [`/uploads/${p.slug}-far.jpg`, `/uploads/${p.slug}-close.jpg`, `/uploads/${p.slug}-exact.jpg`],
+        features: (p.formats || [p.format])[0] === "TAPESTRY" || (p.formats || [p.format])[0] === "TRIPTYCH" ? FABRIC_FEATURES : CANVAS_FEATURES,
+        images: p.images || [`/uploads/${p.slug}-far.jpg`, `/uploads/${p.slug}-close.jpg`, `/uploads/${p.slug}-exact.jpg`],
         status: p.sold ? "SOLD" : "ACTIVE",
         soldAt: p.sold ? new Date() : null,
         artistId: p.artist ? artistUsers[p.artist] : null,
