@@ -1209,8 +1209,9 @@ export default function App() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&family=Caveat:wght@600;700&display=swap');
         * { box-sizing: border-box; }
-        html { scroll-behavior: smooth; overflow-x: hidden; }
-        body { -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+        html { scroll-behavior: smooth; overflow-x: hidden; overscroll-behavior-x: none; touch-action: pan-y pinch-zoom; }
+        body { -webkit-font-smoothing: antialiased; overflow-x: hidden; overscroll-behavior-x: none; touch-action: pan-y pinch-zoom; }
+        #root, #root > div { overflow-x: hidden; }
         h1,h2,h3 { font-family: 'Cormorant Garamond', serif; font-weight: 500; margin:0; letter-spacing: 0.005em; }
         p { margin: 0; }
         ::selection { background: #c9a24b; color: #0a0a09; }
