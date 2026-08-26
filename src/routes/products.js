@@ -8,7 +8,10 @@ const router = express.Router();
 router.get("/", async (req, res) => {
   const { category } = req.query;
   const products = await prisma.product.findMany({
-    where: category && category !== "All" ? { category } : undefined,
+    where: {
+      status: { not: "RETIRED" }, // retired designs (rights issues, pulled listings) stay in the DB for record-keeping but shouldn't show in the shop
+      ...(category && category !== "All" ? { category } : {}),
+    },
     include: { artist: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
   });
