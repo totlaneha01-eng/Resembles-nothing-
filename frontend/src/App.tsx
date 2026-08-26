@@ -1234,28 +1234,9 @@ export default function App() {
         .fade-up { animation: fadeUp .6s cubic-bezier(.16,1,.3,1) both; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(14px);} to { opacity: 1; transform: translateY(0);} }
 
-        /* Tapestries unfurl top-down, like being unrolled onto the wall. */
-        .reveal-tapestry { opacity: 0; transform-origin: top center; transform: scaleY(0.06) scaleX(0.97); filter: blur(2px); }
-        .reveal-tapestry.in-view { animation: unfurl 1s cubic-bezier(.22,1,.36,1) forwards; }
-        @keyframes unfurl {
-          0%   { opacity: 0; transform: scaleY(0.06) scaleX(0.97); filter: blur(2px); }
-          55%  { opacity: 1; transform: scaleY(1.03) scaleX(1); filter: blur(0); }
-          75%  { transform: scaleY(0.985) scaleX(1); }
-          100% { transform: scaleY(1) scaleX(1); }
-        }
-
-        /* Canvases settle into place, like being hung and straightened. */
-        .reveal-canvas { opacity: 0; transform: translateY(26px) rotate(-4deg) scale(0.92); }
-        .reveal-canvas.in-view { animation: hangSettle .8s cubic-bezier(.34,1.56,.64,1) forwards; }
-        @keyframes hangSettle {
-          0%   { opacity: 0; transform: translateY(26px) rotate(-4deg) scale(0.92); }
-          70%  { opacity: 1; transform: translateY(-3px) rotate(1deg) scale(1.01); }
-          100% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .reveal-tapestry, .reveal-canvas { opacity: 1 !important; transform: none !important; filter: none !important; animation: none !important; }
-        }
+        /* Scroll-triggered blur/unfurl reveal removed per request — cards and
+           the product-detail image render at full opacity/no blur immediately. */
+        .reveal-tapestry, .reveal-canvas { opacity: 1; transform: none; filter: none; }
 
         /* Entry animation — corner brackets actually draw themselves in via
            stroke-dashoffset, then a flash, then the wordmark fades up. */
