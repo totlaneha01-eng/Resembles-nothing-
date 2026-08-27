@@ -1297,11 +1297,27 @@ export default function App() {
         @media (max-width: 640px) {
           .prod-grid { grid-template-columns: repeat(2,1fr) !important; gap: 18px 14px !important; }
         }
+        @media (max-width: 420px) {
+          /* The header's right-side icon cluster (notifications, currency
+             toggle, cart, profile) doesn't shrink for mobile at all — with
+             .navlinks already hidden below 900px, this row is the only
+             thing left, but it was still wide enough to overflow its own
+             container on narrow phones (measured: ~392px of content in a
+             360-390px viewport). Combined with touch-action:pan-y blocking
+             horizontal panning site-wide (see the Android scroll-bug fix),
+             that meant the profile button — the last item, pushed off the
+             right edge — became completely unreachable, not just visually
+             cramped. Reclaim the space instead of relying on being able to
+             scroll to it. */
+          .header-row { padding-left: 12px !important; padding-right: 12px !important; }
+          .header-icons { gap: 6px !important; }
+          .currency-btn { padding: 6px 8px !important; font-size: 10.5px !important; }
+        }
       `}</style>
 
       {/* HEADER */}
       <header style={{ position: "sticky", top: 0, zIndex: 100, background: "rgba(10,10,9,0.9)", backdropFilter: "blur(10px)", borderBottom: `1px solid ${line}` }}>
-        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }} className="header-row">
           <div onClick={backToShop} style={{ cursor: "pointer" }}><Logo size={36} /></div>
           <nav style={{ display: "flex", gap: 28, fontSize: 13 }} className="navlinks">
             <a href="#shop" onClick={backToShop} style={{ color: stone, textDecoration: "none" }}>Shop</a>
@@ -1310,7 +1326,7 @@ export default function App() {
             <a href="#" onClick={(e) => { e.preventDefault(); if (user) setShowProfile(true); else setShowLogin(true); }} style={{ color: stone, textDecoration: "none" }}>Sell Your Art</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setShowQuiz(true); }} style={{ color: stone, textDecoration: "none" }}>Find Your Art Persona</a>
           </nav>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }} className="header-icons">
             <div style={{ position: "relative" }}>
               <IconBtn onClick={() => { setShowNotifs((s) => !s); setShowAccount(false); }} count={unreadNotifs}>🔔</IconBtn>
               {showNotifs && (
@@ -1330,7 +1346,7 @@ export default function App() {
               )}
             </div>
 
-            <button onClick={() => setCurrencyMode((m) => (m === "INR" ? "USD" : "INR"))} style={{
+            <button onClick={() => setCurrencyMode((m) => (m === "INR" ? "USD" : "INR"))} className="currency-btn" style={{
               background: "none", border: `1px solid ${line}`, color: stone, fontSize: 11.5, padding: "9px 12px", cursor: "pointer", letterSpacing: "0.04em"
             }} title="Switch currency">
               {currencyMode === "INR" ? "₹ INR" : "$ USD"}
