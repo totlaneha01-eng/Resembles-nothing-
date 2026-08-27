@@ -856,6 +856,7 @@ export default function App() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
+  const [showMobileNav, setShowMobileNav] = useState(false); // .navlinks is display:none below 900px with nothing replacing it — this is that replacement
   const [notifs, setNotifs] = useState(NOTIFS_SEED);
   const [category, setCategory] = useState("All");
   const [currencyMode, setCurrencyMode] = useState("INR"); // "INR" | "USD"
@@ -1275,6 +1276,13 @@ export default function App() {
 
         @media (max-width: 900px) {
           .navlinks { display: none !important; }
+          /* .navlinks (Shop / Preview Your Wall / FAQs / Sell Your Art /
+             Find Your Art Persona) had no mobile replacement at all — just
+             hidden with nothing standing in for it, so those pages
+             (notably the wall visualizer) were unreachable from the header
+             on any phone. .mobile-nav-btn + the dropdown it toggles is
+             that replacement. */
+          .mobile-nav-btn { display: flex !important; }
           .hero-grid { grid-template-columns: 1fr !important; }
           /* Below the 2-column breakpoint the 3-photo tilted collage takes
              the full row width instead of ~45% of it, which — even once
@@ -1327,6 +1335,14 @@ export default function App() {
             <a href="#" onClick={(e) => { e.preventDefault(); setShowQuiz(true); }} style={{ color: stone, textDecoration: "none" }}>Find Your Art Persona</a>
           </nav>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }} className="header-icons">
+            <button
+              onClick={() => setShowMobileNav((s) => !s)}
+              className="mobile-nav-btn"
+              style={{ display: "none", background: "none", border: `1px solid ${line}`, color: cream, width: 38, height: 38, cursor: "pointer", fontSize: 16, alignItems: "center", justifyContent: "center" }}
+              aria-label="Menu"
+            >
+              {showMobileNav ? "✕" : "☰"}
+            </button>
             <div style={{ position: "relative" }}>
               <IconBtn onClick={() => { setShowNotifs((s) => !s); setShowAccount(false); }} count={unreadNotifs}>🔔</IconBtn>
               {showNotifs && (
@@ -1375,6 +1391,15 @@ export default function App() {
             </div>
           </div>
         </div>
+        {showMobileNav && (
+          <div className="mobile-nav-dropdown" style={{ borderTop: `1px solid ${line}`, background: "#0a0a09", padding: "8px 24px 16px", display: "flex", flexDirection: "column" }}>
+            <a href="#shop" onClick={(e) => { backToShop(e); setShowMobileNav(false); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Shop</a>
+            <a href="#visualizer" onClick={() => setShowMobileNav(false)} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Preview Your Wall</a>
+            <a href="#faq" onClick={() => setShowMobileNav(false)} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>FAQs</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); if (user) setShowProfile(true); else setShowLogin(true); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Sell Your Art</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); setShowQuiz(true); }} style={{ color: cream, textDecoration: "none", padding: "12px 0" }}>Find Your Art Persona</a>
+          </div>
+        )}
       </header>
 
       {page === "shop" && (
