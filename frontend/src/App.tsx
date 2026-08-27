@@ -867,7 +867,8 @@ export default function App() {
   const [showChat, setShowChat] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [customerPhotos, setCustomerPhotos] = useState({});
-  const [giftReminders, setGiftReminders] = useState(false);
+  const [giftReminders, setGiftReminders] = useState(false); // mirrors CalendarConnection existing server-side, kept in sync via checkCalendarStatus()
+  const [calendarBusy, setCalendarBusy] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [authMode, setAuthMode] = useState("login");
   const [showCart, setShowCart] = useState(false);
@@ -901,6 +902,34 @@ export default function App() {
       apiFetch("/auth/me")
         .then((data) => setUser(data.user))
         .catch(() => clearToken());
+    }
+  }, []);
+
+  // Reads whether Calendar's actually connected server-side (real state, not
+  // just local UI state), and handles the ?calendar=connected|denied|error
+  // that Google's OAuth redirect lands back on the homepage with.
+  useEffect(() => {
+    if (getToken()) {
+      apiFetch("/calendar/status")
+        .then((data) => setGiftReminders(!!data.connected))
+        .catch(() => {}); // e.g. GOOGLE_CLIENT_ID isn't set up yet — button just stays "Connect Calendar"
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("calendar");
+    if (result) {
+      if (result === "connected") {
+        setGiftReminders(true);
+        setNotifs((n) => [{ id: Date.now(), title: "🎁 Gift reminder", body: "Calendar connected — we'll nudge you before birthdays with picks they'd actually love.", time: "just now", read: false }, ...n]);
+        showToast("Calendar connected");
+      } else if (result === "denied") {
+        showToast("Calendar connection cancelled");
+      } else {
+        showToast("Couldn't connect your calendar — try again in a bit");
+      }
+      params.delete("calendar");
+      const rest = params.toString();
+      window.history.replaceState({}, "", window.location.pathname + (rest ? `?${rest}` : ""));
     }
   }, []);
 
@@ -1093,15 +1122,31 @@ export default function App() {
     reader.readAsDataURL(file);
   }
 
-  function toggleGiftReminders() {
-    setGiftReminders((v) => {
-      const next = !v;
-      if (next) {
-        setNotifs((n) => [{ id: Date.now(), title: "🎁 Gift reminder", body: "Mom's birthday is in 12 days — \"Amateur Flirt\" or \"Dusk Raga\" would both land well. (sent to your WhatsApp)", time: "just now", read: false }, ...n]);
-        showToast("Gift reminders on — connect a real calendar to personalise these");
+  async function toggleGiftReminders() {
+    if (!user) {
+      showToast("Sign in first, then connect a calendar");
+      setShowLogin(true);
+      return;
+    }
+    setCalendarBusy(true);
+    try {
+      if (giftReminders) {
+        await apiFetch("/calendar/disconnect", { method: "POST" });
+        setGiftReminders(false);
+        showToast("Calendar disconnected");
+      } else {
+        // Redirects the whole page to Google's consent screen — this tab
+        // navigates away, so there's nothing to clean up on success; Google
+        // sends the browser back to /?calendar=connected|denied|error,
+        // handled by the useEffect above.
+        const data = await apiFetch("/calendar/connect");
+        window.location.href = data.url;
       }
-      return next;
-    });
+    } catch (err) {
+      showToast(err instanceof ApiError && err.status === 501 ? "Calendar connection isn't set up yet" : "Something went wrong — try again.");
+    } finally {
+      setCalendarBusy(false);
+    }
   }
 
   function placeOrder(e) {
@@ -1649,12 +1694,13 @@ export default function App() {
                 <div style={{ fontSize: 13.5, color: cream }}>🎁 Gift Reminders</div>
                 <div style={{ fontSize: 11, color: stone, marginTop: 3 }}>Connect a calendar and we'll nudge you before birthdays with picks they'd actually love.</div>
               </div>
-              <button onClick={toggleGiftReminders} style={{
+              <button onClick={toggleGiftReminders} disabled={calendarBusy} style={{
                 fontSize: 11, padding: "8px 14px", background: giftReminders ? "transparent" : gold,
-                color: giftReminders ? goldHi : ink, border: `1px solid ${gold}`, cursor: "pointer", whiteSpace: "nowrap"
-              }}>{giftReminders ? "Reminders On" : "Connect Calendar"}</button>
+                color: giftReminders ? goldHi : ink, border: `1px solid ${gold}`, cursor: calendarBusy ? "default" : "pointer",
+                whiteSpace: "nowrap", opacity: calendarBusy ? 0.6 : 1
+              }}>{calendarBusy ? "…" : giftReminders ? "Disconnect" : "Connect Calendar"}</button>
             </div>
-            <p style={{ fontSize: 10, color: stone, marginTop: 10 }}>Demo — connecting a real calendar needs your permission via Google/Apple Calendar, handled by a backend we haven't built yet.</p>
+            <p style={{ fontSize: 10, color: stone, marginTop: 10 }}>Google Calendar only, read-only access — we just check for birthdays and anniversaries coming up, never write anything to your calendar.</p>
           </div>
         </div>
       </section>

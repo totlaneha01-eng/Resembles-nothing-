@@ -5,6 +5,11 @@ const cors = require("cors");
 const prisma = require("./lib/prisma");
 
 const app = express();
+// Render sits in front of this app as a reverse proxy — without this,
+// req.protocol always reports "http" even on a real https:// request, which
+// breaks Google OAuth's exact redirect_uri match (src/lib/googleCalendar.js
+// builds it from req.protocol). Harmless for everything else already here.
+app.set("trust proxy", 1);
 app.use(cors());
 app.use(express.json());
 
@@ -22,6 +27,7 @@ app.use("/api/payouts", require("./routes/payouts"));
 app.use("/api/reviews", require("./routes/reviews"));
 app.use("/api/quiz", require("./routes/quiz"));
 app.use("/api/chat", require("./routes/chat"));
+app.use("/api/calendar", require("./routes/calendar"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/webhooks/whatsapp", require("./routes/whatsappWebhook"));
 
@@ -72,6 +78,20 @@ async function bootstrapAdminFromEnv() {
   }
 }
 bootstrapAdminFromEnv();
+
+// Gift reminders: check everyone's connected calendar once a day for an
+// upcoming birthday/anniversary. No cron infra for this (no node-cron
+// dependency, no Render Cron Job service) — one setInterval in this
+// long-running process is enough at this scale. No-ops entirely (an empty
+// CalendarConnection table means nothing to check) until GOOGLE_CLIENT_ID/
+// GOOGLE_CLIENT_SECRET exist and at least one user has connected — see
+// src/lib/googleCalendar.js and src/routes/calendar.js.
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  const { runGiftSync } = require("./lib/giftSync");
+  setTimeout(() => runGiftSync().catch((err) => console.error("Gift sync failed:", err.message)), 60_000); // wait a minute after boot, not in the critical startup path
+  setInterval(() => runGiftSync().catch((err) => console.error("Gift sync failed:", err.message)), ONE_DAY_MS);
+}
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`resembles.nothing API running on :${PORT}`));
