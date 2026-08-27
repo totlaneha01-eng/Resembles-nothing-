@@ -1276,6 +1276,15 @@ export default function App() {
         @media (max-width: 900px) {
           .navlinks { display: none !important; }
           .hero-grid { grid-template-columns: 1fr !important; }
+          /* Below the 2-column breakpoint, the image stack takes the full
+             row width instead of ~45% of it, so the absolutely-positioned
+             photos (sized as a % of that width, at a 3:4 aspect ratio) come
+             out taller than the fixed 420px box they used to fit in — they
+             were spilling out the top of it and overlapping the trust-badge
+             row above. Scale the box with viewport width instead of a fixed
+             px value so it actually contains them at every width in this
+             range. */
+          .hero-visual { min-height: 85vw !important; }
           .prod-grid { grid-template-columns: repeat(3,1fr) !important; gap: 22px 18px !important; }
           .viz-grid { grid-template-columns: 1fr !important; }
           .tier-grid { grid-template-columns: 1fr !important; }
@@ -1377,7 +1386,7 @@ export default function App() {
               ))}
             </div>
           </div>
-          <div style={{ display: "flex", justifyContent: "center", position: "relative", minHeight: 420 }} className="fade-up">
+          <div style={{ display: "flex", justifyContent: "center", position: "relative", minHeight: 420 }} className="fade-up hero-visual">
             <div style={{
               position: "absolute", width: "58%", aspectRatio: "3/4", border: `1px solid ${line}`,
               top: 0, right: "6%", transform: "rotate(4deg)", boxShadow: "0 30px 60px rgba(0,0,0,0.5)", overflow: "hidden", zIndex: 1
