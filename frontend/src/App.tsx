@@ -1276,15 +1276,17 @@ export default function App() {
         @media (max-width: 900px) {
           .navlinks { display: none !important; }
           .hero-grid { grid-template-columns: 1fr !important; }
-          /* Below the 2-column breakpoint, the image stack takes the full
-             row width instead of ~45% of it, so the absolutely-positioned
-             photos (sized as a % of that width, at a 3:4 aspect ratio) come
-             out taller than the fixed 420px box they used to fit in — they
-             were spilling out the top of it and overlapping the trust-badge
-             row above. Scale the box with viewport width instead of a fixed
-             px value so it actually contains them at every width in this
-             range. */
-          .hero-visual { min-height: 85vw !important; }
+          /* Below the 2-column breakpoint the 3-photo tilted collage takes
+             the full row width instead of ~45% of it, which — even once
+             correctly sized to not overlap the badges above (previously
+             fixed here with min-height: 85vw) — meant three large photos
+             stacked with wide gaps between them, dominating most of the
+             screen before any real content appeared. That's a lot for a
+             phone; drop to a single, moderately-sized centered photo
+             instead of trying to fit the full desktop collage. */
+          .hero-visual { min-height: 0 !important; margin: 8px 0 4px; }
+          .hero-photo-back { display: none !important; }
+          .hero-photo-front { width: 62% !important; }
           .prod-grid { grid-template-columns: repeat(3,1fr) !important; gap: 22px 18px !important; }
           .viz-grid { grid-template-columns: 1fr !important; }
           .tier-grid { grid-template-columns: 1fr !important; }
@@ -1387,19 +1389,19 @@ export default function App() {
             </div>
           </div>
           <div style={{ display: "flex", justifyContent: "center", position: "relative", minHeight: 420 }} className="fade-up hero-visual">
-            <div style={{
+            <div className="hero-photo-back" style={{
               position: "absolute", width: "58%", aspectRatio: "3/4", border: `1px solid ${line}`,
               top: 0, right: "6%", transform: "rotate(4deg)", boxShadow: "0 30px 60px rgba(0,0,0,0.5)", overflow: "hidden", zIndex: 1
             }}>
               <img src={IMG.krishna_e} alt="Dusk Raga triptych" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
-            <div style={{
+            <div className="hero-photo-back" style={{
               position: "absolute", width: "55%", aspectRatio: "3/4", border: `1px solid ${line}`,
               bottom: 0, left: "4%", transform: "rotate(-5deg)", boxShadow: "0 30px 60px rgba(0,0,0,0.5)", overflow: "hidden", zIndex: 2
             }}>
               <img src={IMG.roses_e} alt="Amateur Flirt canvas" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
-            <div style={{ width: "48%", border: `1px solid ${gold}`, padding: 10, background: ink2, boxShadow: "0 44px 90px rgba(0,0,0,0.6)", position: "relative", zIndex: 3, aspectRatio: "3/4", overflow: "hidden" }}>
+            <div className="hero-photo-front" style={{ width: "48%", border: `1px solid ${gold}`, padding: 10, background: ink2, boxShadow: "0 44px 90px rgba(0,0,0,0.6)", position: "relative", zIndex: 3, aspectRatio: "3/4", overflow: "hidden" }}>
               <img src={IMG.tiger_e} alt="Royal Sovereign tapestry" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
           </div>
