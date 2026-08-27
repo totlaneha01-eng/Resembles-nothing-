@@ -539,15 +539,33 @@ function WallVisualizer({ catalog, initialDesign, addToCart, tokens }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 32 }} className="viz-grid">
           <div>
             {!wallPhoto ? (
-              <label style={{
+              <div style={{
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                border: `1.5px dashed ${line}`, aspectRatio: "16/10", cursor: "pointer", color: stone, gap: 12
+                border: `1.5px dashed ${line}`, aspectRatio: "16/10", color: stone, gap: 14
               }}>
                 <span style={{ fontSize: 34 }}>📷</span>
-                <span style={{ fontSize: 14 }}>Click to upload a photo of your wall</span>
+                <span style={{ fontSize: 14 }}>Add a photo of your wall</span>
+                {/* Two explicit buttons instead of one plain file input — on
+                    Android, a bare <input type="file"> with no `capture`
+                    attribute goes straight to the gallery on a lot of
+                    devices instead of offering a camera option, so "See It
+                    On Your Wall" wasn't actually reachable as a live-camera
+                    feature. capture="environment" is the standard way to
+                    force the camera specifically; giving that its own
+                    button (rather than relying on it for the only input)
+                    keeps the gallery option available too. */}
+                <div style={{ display: "flex", gap: 10 }}>
+                  <label style={{ border: `1px solid ${gold}`, color: goldHi, padding: "9px 16px", fontSize: 12.5, cursor: "pointer", letterSpacing: "0.02em" }}>
+                    Take a Photo
+                    <input type="file" accept="image/*" capture="environment" onChange={handleWallUpload} style={{ display: "none" }} />
+                  </label>
+                  <label style={{ border: `1px solid ${line}`, color: stone, padding: "9px 16px", fontSize: 12.5, cursor: "pointer", letterSpacing: "0.02em" }}>
+                    Choose from Gallery
+                    <input type="file" accept="image/*" onChange={handleWallUpload} style={{ display: "none" }} />
+                  </label>
+                </div>
                 <span style={{ fontSize: 11 }}>JPG or PNG</span>
-                <input type="file" accept="image/*" onChange={handleWallUpload} style={{ display: "none" }} />
-              </label>
+              </div>
             ) : (
               <div>
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 14, marginBottom: 14, flexWrap: "wrap" }}>
