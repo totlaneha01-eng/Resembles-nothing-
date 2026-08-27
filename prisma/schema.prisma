@@ -34,6 +34,7 @@ model User {
   payoutsOwed OrderItem[]        @relation("ArtistPayouts")
   chatsAsCustomer ChatMessage[]  @relation("CustomerChats")
   chatsSent       ChatMessage[]  @relation("SentChats")
+  calendarConnection CalendarConnection?
 }
 
 // Bank details are collected so we can pay artists per sale.
@@ -249,6 +250,24 @@ model NotificationLog {
   body      String
   status    String // "sent" | "failed" | "queued"
   createdAt DateTime @default(now())
+}
+
+// ---------- Gift reminders (Google Calendar) ----------
+// One connection per user — "Connect Calendar" on the account page. Only a
+// refresh token is kept; access tokens are minted on demand via
+// src/lib/googleCalendar.js and never persisted. refreshTokenEnc reuses the
+// same AES-256-GCM helper (src/lib/crypto.js) and BANK_ENCRYPTION_KEY as
+// BankDetails.accountNumberEnc, rather than adding a second encryption key
+// for what's the same kind of thing: a small third-party secret at rest.
+
+model CalendarConnection {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id])
+  refreshTokenEnc String
+  scope           String
+  connectedAt     DateTime  @default(now())
+  lastSyncedAt    DateTime?
 }
 
 // ---------- Chat with the Artist ----------
