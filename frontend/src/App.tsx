@@ -1394,6 +1394,9 @@ export default function App() {
       {/* HEADER */}
       <header style={{ position: "sticky", top: 0, zIndex: 100, background: "rgba(10,10,9,0.9)", backdropFilter: "blur(10px)", borderBottom: `1px solid ${line}` }}>
         <div style={{ maxWidth: 1180, margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }} className="header-row">
+          <div onClick={backToShop} style={{ cursor: "pointer", fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: cream, letterSpacing: "0.01em" }}>
+            resembles<em style={{ color: gold, fontStyle: "normal" }}>.nothing</em>
+          </div>
           <nav style={{ display: "flex", gap: 28, fontSize: 13 }} className="navlinks">
             <a href="#shop" onClick={backToShop} style={{ color: stone, textDecoration: "none" }}>Shop</a>
             <a href="#visualizer" style={{ color: stone, textDecoration: "none" }}>Preview Your Wall</a>
@@ -1620,9 +1623,10 @@ export default function App() {
             }} />
             <div>
               <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 8 }}>A note from the founder</div>
-              <p style={{ fontSize: 15, color: cream, lineHeight: 1.75, fontStyle: "italic", marginBottom: 14 }}>
+              <p style={{ fontSize: 15, color: cream, lineHeight: 1.75, fontStyle: "italic", marginBottom: 6 }}>
                 "Every order here is prepaid, made specifically for you, and shipped by our small team — no middlemen, no dropshipping. I put my own name and Instagram on this brand because I want you to know there's a real person accountable for what shows up at your door."
               </p>
+              <p style={{ fontSize: 13, color: goldHi, marginBottom: 14 }}>— Neha Totla, Co-Founder</p>
               <a href="https://instagram.com/resembles.nothing" target="_blank" rel="noopener" style={{
                 display: "inline-flex", alignItems: "center", gap: 8, color: goldHi, fontSize: 13, textDecoration: "none", border: `1px solid ${gold}`, padding: "9px 16px"
               }}>📷 Follow the founder on Instagram</a>
