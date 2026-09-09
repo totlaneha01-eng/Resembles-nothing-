@@ -189,6 +189,10 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
 
         @media (max-width: 900px) {
           .navlinks { display: none !important; }
+          /* With .navlinks hidden and no logo in the header anymore, .header-icons
+             is the only flex child left in .header-row — space-between (its desktop
+             layout) would otherwise pin a lone child to the left instead of the right. */
+          .header-row { justify-content: flex-end !important; }
           /* .navlinks (Shop / Preview Your Wall / FAQs / Sell Your Art /
              Find Your Art Persona) had no mobile replacement at all — just
              hidden with nothing standing in for it, so those pages
