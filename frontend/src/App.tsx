@@ -198,7 +198,7 @@ const QUIZ_QUESTIONS = [
 
 const TRUST_BADGES = [
   { icon: "🔒", label: "Secure prepaid checkout", sub: "Powered by Razorpay" },
-  { icon: "🖋️", label: "Founder-backed", sub: "A real person stands behind every order" },
+  { icon: "🖋️", label: "Founder-backed", sub: "Real people stand behind every order" },
   { icon: "📦", label: "Made & shipped, tracked", sub: "Updates sent straight to your DMs" },
   { icon: "🎨", label: "Curated, limited runs", sub: "Each design carries a capped edition size" },
 ];
@@ -1616,20 +1616,31 @@ export default function App() {
           </div>
 
           {/* Founder note */}
-          <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: 30, alignItems: "center", border: `1px solid ${line}`, padding: 32, marginBottom: 40 }} className="founder-grid">
-            <img src="/founder.jpg" alt="Founder" style={{
-              width: 120, height: 120, borderRadius: "50%", border: `1px solid ${gold}`,
-              objectFit: "cover", margin: "0 auto"
-            }} />
-            <div>
-              <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 8 }}>A note from the founder</div>
-              <p style={{ fontSize: 15, color: cream, lineHeight: 1.75, fontStyle: "italic", marginBottom: 6 }}>
-                "Every order here is prepaid, made specifically for you, and shipped by our small team — no middlemen, no dropshipping. I put my own name and Instagram on this brand because I want you to know there's a real person accountable for what shows up at your door."
-              </p>
-              <p style={{ fontSize: 13, color: goldHi, marginBottom: 14 }}>— Neha Totla, Co-Founder</p>
+          <div style={{ border: `1px solid ${line}`, padding: 32, marginBottom: 40 }}>
+            <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 14, textAlign: "center" }}>A note from the founders</div>
+            <p style={{ fontSize: 15, color: cream, lineHeight: 1.75, fontStyle: "italic", maxWidth: 720, margin: "0 auto 22px", textAlign: "center" }}>
+              "Every order here is prepaid, made specifically for you, and shipped by our small team — no middlemen, no dropshipping. We put our own names and Instagram on this brand because we want you to know there are real people accountable for what shows up at your door."
+            </p>
+            <div style={{ display: "flex", justifyContent: "center", gap: 40, flexWrap: "wrap", marginBottom: 20 }} className="founder-grid">
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <img src="/founder-neha.jpg" alt="Neha Totla" style={{ width: 64, height: 64, borderRadius: "50%", border: `1px solid ${gold}`, objectFit: "cover" }} />
+                <div>
+                  <div style={{ fontSize: 13.5, color: cream }}>Neha Totla</div>
+                  <div style={{ fontSize: 11, color: stone }}>Co-Founder</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <img src="/founder-laksh.jpg" alt="Laksh Keswani" style={{ width: 64, height: 64, borderRadius: "50%", border: `1px solid ${gold}`, objectFit: "cover" }} />
+                <div>
+                  <div style={{ fontSize: 13.5, color: cream }}>Laksh Keswani</div>
+                  <div style={{ fontSize: 11, color: stone }}>Co-Founder</div>
+                </div>
+              </div>
+            </div>
+            <div style={{ textAlign: "center" }}>
               <a href="https://instagram.com/resembles.nothing" target="_blank" rel="noopener" style={{
                 display: "inline-flex", alignItems: "center", gap: 8, color: goldHi, fontSize: 13, textDecoration: "none", border: `1px solid ${gold}`, padding: "9px 16px"
-              }}>📷 Follow the founder on Instagram</a>
+              }}>📷 Follow us on Instagram</a>
             </div>
           </div>
 
