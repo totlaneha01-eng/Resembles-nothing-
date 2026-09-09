@@ -1610,11 +1610,10 @@ export default function App() {
 
           {/* Founder note */}
           <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: 30, alignItems: "center", border: `1px solid ${line}`, padding: 32, marginBottom: 40 }} className="founder-grid">
-            <div style={{
-              width: 120, height: 120, borderRadius: "50%", background: ink, border: `1px solid ${gold}`,
-              display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Cormorant Garamond', serif",
-              fontSize: 40, color: goldHi, margin: "0 auto"
-            }}>N</div>
+            <img src="/founder.jpg" alt="Founder" style={{
+              width: 120, height: 120, borderRadius: "50%", border: `1px solid ${gold}`,
+              objectFit: "cover", margin: "0 auto"
+            }} />
             <div>
               <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 8 }}>A note from the founder</div>
               <p style={{ fontSize: 15, color: cream, lineHeight: 1.75, fontStyle: "italic", marginBottom: 14 }}>
@@ -1623,7 +1622,6 @@ export default function App() {
               <a href="https://instagram.com/resembles.nothing" target="_blank" rel="noopener" style={{
                 display: "inline-flex", alignItems: "center", gap: 8, color: goldHi, fontSize: 13, textDecoration: "none", border: `1px solid ${gold}`, padding: "9px 16px"
               }}>📷 Follow the founder on Instagram</a>
-              <p style={{ fontSize: 10.5, color: stone, marginTop: 10 }}>— replace with your name, photo, and handle before this goes live.</p>
             </div>
           </div>
 
