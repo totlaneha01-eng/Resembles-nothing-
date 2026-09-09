@@ -1340,10 +1340,23 @@ export default function App() {
 
         @media (max-width: 900px) {
           .navlinks { display: none !important; }
-          /* With .navlinks hidden and no logo in the header anymore, .header-icons
-             is the only flex child left in .header-row — space-between (its desktop
-             layout) would otherwise pin a lone child to the left instead of the right. */
-          .header-row { justify-content: flex-end !important; }
+          /* Mobile header is 3 zones — hamburger, centered wordmark, icons —
+             not the desktop's left-wordmark/nav/icons flex row. .navlinks is
+             display:none so it drops out of layout entirely and doesn't
+             claim a grid column. The outer columns are both 1fr (equal)
+             rather than sized to their own content (38px hamburger vs. ~4
+             icon buttons) — that's what actually centers the middle column
+             on the page; matching column widths, not matching content. */
+          .header-row { display: grid !important; grid-template-columns: 1fr auto 1fr; }
+          .mobile-nav-btn { justify-self: start; }
+          .brand-wordmark { text-align: center; }
+          .header-icons { justify-self: end; }
+          /* The currency toggle ("₹ INR") is by far the widest thing in
+             .header-icons — collapsing it to match the other 42px circular
+             icon buttons is most of what makes true centering above
+             achievable at all on a real phone width, not just a nice-to-have. */
+          .currency-btn { width: 42px; height: 42px; border-radius: 50%; padding: 0 !important; display: flex; align-items: center; justify-content: center; }
+          .currency-btn-label { display: none; }
           /* .navlinks (Shop / Preview Your Wall / FAQs / Sell Your Art /
              Find Your Art Persona) had no mobile replacement at all — just
              hidden with nothing standing in for it, so those pages
@@ -1387,14 +1400,21 @@ export default function App() {
              scroll to it. */
           .header-row { padding-left: 12px !important; padding-right: 12px !important; }
           .header-icons { gap: 6px !important; }
-          .currency-btn { padding: 6px 8px !important; font-size: 10.5px !important; }
         }
       `}</style>
 
       {/* HEADER */}
       <header style={{ position: "sticky", top: 0, zIndex: 100, background: "rgba(10,10,9,0.9)", backdropFilter: "blur(10px)", borderBottom: `1px solid ${line}` }}>
         <div style={{ maxWidth: 1180, margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }} className="header-row">
-          <div onClick={backToShop} style={{ cursor: "pointer", fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: cream, letterSpacing: "0.01em" }}>
+          <button
+            onClick={() => setShowMobileNav((s) => !s)}
+            className="mobile-nav-btn"
+            style={{ display: "none", background: "none", border: `1px solid ${line}`, color: cream, width: 38, height: 38, cursor: "pointer", fontSize: 16, alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+            aria-label="Menu"
+          >
+            {showMobileNav ? "✕" : "☰"}
+          </button>
+          <div onClick={backToShop} className="brand-wordmark" style={{ cursor: "pointer", fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: cream, letterSpacing: "0.01em" }}>
             resembles<em style={{ color: gold, fontStyle: "normal" }}>.nothing</em>
           </div>
           <nav style={{ display: "flex", gap: 28, fontSize: 13 }} className="navlinks">
@@ -1405,14 +1425,6 @@ export default function App() {
             <a href="#" onClick={(e) => { e.preventDefault(); setShowQuiz(true); }} style={{ color: stone, textDecoration: "none" }}>Find Your Art Persona</a>
           </nav>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }} className="header-icons">
-            <button
-              onClick={() => setShowMobileNav((s) => !s)}
-              className="mobile-nav-btn"
-              style={{ display: "none", background: "none", border: `1px solid ${line}`, color: cream, width: 38, height: 38, cursor: "pointer", fontSize: 16, alignItems: "center", justifyContent: "center" }}
-              aria-label="Menu"
-            >
-              {showMobileNav ? "✕" : "☰"}
-            </button>
             <div style={{ position: "relative" }}>
               <IconBtn onClick={() => { setShowNotifs((s) => !s); setShowAccount(false); }} count={unreadNotifs}>🔔</IconBtn>
               {showNotifs && (
@@ -1435,7 +1447,7 @@ export default function App() {
             <button onClick={() => setCurrencyMode((m) => (m === "INR" ? "USD" : "INR"))} className="currency-btn" style={{
               background: "none", border: `1px solid ${line}`, color: stone, fontSize: 11.5, padding: "9px 12px", cursor: "pointer", letterSpacing: "0.04em"
             }} title="Switch currency">
-              {currencyMode === "INR" ? "₹ INR" : "$ USD"}
+              {currencyMode === "INR" ? "₹" : "$"}<span className="currency-btn-label">{currencyMode === "INR" ? " INR" : " USD"}</span>
             </button>
 
             <IconBtn onClick={() => setShowCart(true)} count={cartCount}>🛍</IconBtn>
