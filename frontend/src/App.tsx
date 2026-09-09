@@ -203,13 +203,11 @@ const TRUST_BADGES = [
   { icon: "🎨", label: "Curated, limited runs", sub: "Each design carries a capped edition size" },
 ];
 
-// Placeholder slots for real unboxing/review videos once orders start
-// shipping — intentionally not attributed to named people, since none
-// exist yet. Swap these out for real footage + real names as they come in.
+// Real customer video reviews. Add more entries (each optionally with a
+// `src`) as they come in — an entry without `src` renders as a "coming
+// soon" placeholder in the grid below.
 const VIDEO_TESTIMONIALS = [
   { name: "Customer review", note: "Shared by a customer", src: "/videos/customer-review-1.mp4" },
-  { name: "Video review", note: "Coming as orders ship" },
-  { name: "Video review", note: "Coming as orders ship" },
 ];
 
 function Stars({ n }) {
@@ -1639,9 +1637,9 @@ export default function App() {
           {/* Video testimonials */}
           <div>
             <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16, textAlign: "center" }}>Customer Video Reviews</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }} className="tier-grid">
+            <div style={{ display: "flex", justifyContent: "center" }}>
               {VIDEO_TESTIMONIALS.map((v, i) => (
-                <div key={i} style={{ border: `1px solid ${line}` }}>
+                <div key={i} style={{ border: `1px solid ${line}`, width: "100%", maxWidth: 320 }}>
                   <div style={{ aspectRatio: "9/16", background: "#000", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
                     {v.src ? (
                       <video src={v.src} controls playsInline preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
