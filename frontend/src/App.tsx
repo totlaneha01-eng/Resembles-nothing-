@@ -219,6 +219,18 @@ function Stars({ n }) {
 // design's category and its available formats are independent choices.
 const CATEGORIES = ["All", "Sports", "Aviation", "Psychedelic", "Abstract", "Motivation", "Spiritual", "Movies", "Icons"];
 
+// One line of flavour text per theme, shown on the catalogue's category cards.
+const CATEGORY_TAGLINES = {
+  Sports: "Glory, framed.",
+  Aviation: "Built for those who look up.",
+  Psychedelic: "Reality, gently bent.",
+  Abstract: "Shapes with something to say.",
+  Motivation: "For walls that talk back.",
+  Spiritual: "Stillness you can hang.",
+  Movies: "Frame by frame, forever.",
+  Icons: "Faces that don't need captions.",
+};
+
 const FAQS = [
   { q: "Why do I have to pay the full amount upfront?", a: "Every piece is made specifically for your order, so we ask for prepayment before production starts. Payments are processed securely through Razorpay — we never see or store your card details — and the founder's own Instagram is linked on this site if you'd like to see the person accountable for your order." },
   { q: "Will my design ever be sold again?", a: "Each design has a set edition size — sometimes just one piece, sometimes a small run — decided when it's listed. Once every piece in that edition sells, it's retired from the catalog for good and won't be reprinted." },
@@ -1284,7 +1296,12 @@ export default function App() {
         button:active { transform: scale(0.98); }
 
         .cat-chip { cursor:pointer; transition: all .25s ease; }
-        .cat-chip:hover { border-color: #c9a24b !important; color: #e9cc84 !important; }
+        .cat-chip:hover { border-color: #c9a24b !important; color: #e9cc84 !important; text-decoration: underline; }
+        .cat-card-row { scrollbar-width: none; -ms-overflow-style: none; }
+        .cat-card-row::-webkit-scrollbar { display: none; }
+        .cat-card { transition: transform .25s ease; }
+        .cat-card:hover { transform: translateY(-4px); }
+        .cat-card:hover .cat-card-img { border-color: #c9a24b !important; opacity: 1 !important; }
 
         .prod-card { transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease; }
         .prod-card:hover { transform: translateY(-4px); border-color: rgba(201,162,75,0.55) !important; box-shadow: 0 24px 48px rgba(0,0,0,0.4); }
@@ -1588,13 +1605,38 @@ export default function App() {
             <h2 style={{ fontSize: "clamp(1.8rem,3.4vw,2.6rem)", marginTop: 14 }}>Nine pieces. Zero repeats.</h2>
           </div>
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", marginBottom: 40 }}>
-            {categoryOptions.map((c) => (
-              <div key={c} className="cat-chip" onClick={() => setCategory(c)} style={{
-                padding: "9px 20px", border: `1px solid ${c === category ? gold : line}`,
-                color: c === category ? goldHi : stone, fontSize: 13
-              }}>{c}</div>
-            ))}
+          {category !== "All" && (
+            <div style={{ textAlign: "center", marginBottom: 18 }}>
+              <span onClick={() => setCategory("All")} className="cat-chip" style={{ fontSize: 12, color: goldHi, letterSpacing: "0.04em" }}>
+                ← View all pieces
+              </span>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 20, overflowX: "auto", justifyContent: categoryOptions.length <= 6 ? "center" : "flex-start", padding: "4px 4px 14px" }} className="cat-card-row">
+            {categoryOptions.filter((c) => c !== "All").map((c) => {
+              const cardImg = allProducts.find((p) => p.category === c)?.images?.[0] || PLACEHOLDER_IMG;
+              const active = c === category;
+              return (
+                <div key={c} className="cat-card" onClick={() => setCategory(active ? "All" : c)} style={{ flex: "0 0 auto", width: 148, cursor: "pointer" }}>
+                  <div className="cat-card-img" style={{
+                    width: "100%", height: 188, borderRadius: "72px 72px 10px 10px", overflow: "hidden",
+                    border: `1px solid ${active ? gold : line}`, opacity: active ? 1 : 0.88
+                  }}>
+                    <img
+                      src={cardImg} alt={c}
+                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  </div>
+                  <div style={{ textAlign: "center", marginTop: 12 }}>
+                    <div style={{ fontSize: 12.5, letterSpacing: "0.12em", textTransform: "uppercase", color: active ? goldHi : cream }}>{c}</div>
+                    <div style={{ width: 22, height: 1, background: gold, margin: "7px auto" }} />
+                    <div style={{ fontSize: 11, color: stone, fontStyle: "italic" }}>{CATEGORY_TAGLINES[c] || "Explore the collection."}</div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "28px 24px" }} className="prod-grid">
