@@ -1233,7 +1233,7 @@ export default function App() {
       document.head.appendChild(script);
       document.title = `${viewProduct.name} — resembles.nothing`;
     } else {
-      document.title = "resembles.nothing — Art Beyond Comparison";
+      document.title = "resembles.nothing — One-of-One Wall Art, Tapestries & Canvas | India";
     }
   }, [page, viewProduct]);
 

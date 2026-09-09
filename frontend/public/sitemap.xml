@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Only the homepage is listed here because the site currently has no
+  distinct URL per product — everything (shop, a single design, an
+  artist profile) renders at "/" from in-memory React state, not real
+  routes. Once product pages get their own URLs (e.g. /design/<slug>),
+  add one <url> entry per design here so each can be indexed and ranked
+  individually, not just found buried inside the homepage.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://resemblesnothing.in/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

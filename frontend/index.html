@@ -3,7 +3,37 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>resembles.nothing — Art Beyond Comparison</title>
+
+    <title>resembles.nothing — One-of-One Wall Art, Tapestries & Canvas | India</title>
+    <meta name="description" content="Hand-picked, limited-edition tapestries, canvas prints and split-canvas art — each design capped at a small edition, made to order, and shipped pan-India. Founder-backed, prepaid, no dropshipping." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://resemblesnothing.in/" />
+
+    <!-- Open Graph (Facebook, WhatsApp, LinkedIn, etc.) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="resembles.nothing" />
+    <meta property="og:title" content="resembles.nothing — Art Beyond Comparison" />
+    <meta property="og:description" content="Hand-picked, limited-edition tapestries, canvas prints and split-canvas art — each design capped at a small edition, made to order, and shipped pan-India." />
+    <meta property="og:image" content="https://resemblesnothing.in/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content="https://resemblesnothing.in/" />
+    <meta property="og:locale" content="en_IN" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="resembles.nothing — Art Beyond Comparison" />
+    <meta name="twitter:description" content="Hand-picked, limited-edition tapestries, canvas prints and split-canvas art — each design capped at a small edition, made to order, and shipped pan-India." />
+    <meta name="twitter:image" content="https://resemblesnothing.in/og-image.png" />
+
+    <meta name="theme-color" content="#0a0a09" />
+
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Jost:wght@300;400;500;600&family=Caveat:wght@500;700&display=swap"
@@ -13,6 +43,24 @@
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body { font-family: 'Jost', sans-serif; background: #0a0a09; }
     </style>
+
+    <!-- Static site-level structured data (present even without JS, unlike the
+         per-product schema src/App.tsx injects on the fly — see that file's
+         comment for why per-product pages still need real routes/SSR to be
+         properly indexed or to unfurl richly when shared). -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "OnlineStore",
+        "name": "resembles.nothing",
+        "description": "Hand-picked, limited-edition tapestries, canvas prints and split-canvas wall art, made to order and shipped pan-India.",
+        "url": "https://resemblesnothing.in/",
+        "logo": "https://resemblesnothing.in/icon-512.png",
+        "image": "https://resemblesnothing.in/og-image.png",
+        "priceRange": "₹₹",
+        "areaServed": "IN"
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
