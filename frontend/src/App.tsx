@@ -207,7 +207,7 @@ const TRUST_BADGES = [
 // shipping — intentionally not attributed to named people, since none
 // exist yet. Swap these out for real footage + real names as they come in.
 const VIDEO_TESTIMONIALS = [
-  { name: "Video review", note: "Coming as orders ship" },
+  { name: "Customer review", note: "Shared by a customer", src: "/videos/customer-review-1.mp4" },
   { name: "Video review", note: "Coming as orders ship" },
   { name: "Video review", note: "Coming as orders ship" },
 ];
@@ -1643,8 +1643,14 @@ export default function App() {
               {VIDEO_TESTIMONIALS.map((v, i) => (
                 <div key={i} style={{ border: `1px solid ${line}` }}>
                   <div style={{ aspectRatio: "9/16", background: "#000", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-                    <span style={{ fontSize: 34, color: goldHi }}>▶</span>
-                    <span style={{ position: "absolute", bottom: 10, left: 10, fontSize: 10, color: stone }}>Video coming soon</span>
+                    {v.src ? (
+                      <video src={v.src} controls playsInline preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <>
+                        <span style={{ fontSize: 34, color: goldHi }}>▶</span>
+                        <span style={{ position: "absolute", bottom: 10, left: 10, fontSize: 10, color: stone }}>Video coming soon</span>
+                      </>
+                    )}
                   </div>
                   <div style={{ padding: 12 }}>
                     <div style={{ fontSize: 12.5, color: cream }}>{v.name}</div>
