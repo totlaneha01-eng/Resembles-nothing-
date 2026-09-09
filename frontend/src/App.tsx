@@ -203,9 +203,9 @@ const TRUST_BADGES = [
   { icon: "🎨", label: "Curated, limited runs", sub: "Each design carries a capped edition size" },
 ];
 
-// Placeholder slots for real unboxing/review videos once orders start
-// shipping — intentionally not attributed to named people, since none
-// exist yet. Swap these out for real footage + real names as they come in.
+// Real customer video reviews. Add more entries (each optionally with a
+// `src`) as they come in — an entry without `src` renders as a "coming
+// soon" placeholder in the grid below.
 const VIDEO_TESTIMONIALS = [
   { name: "Customer review", note: "Shared by a customer", src: "/videos/customer-review-1.mp4" },
 ];
