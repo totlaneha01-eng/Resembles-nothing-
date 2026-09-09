@@ -1493,6 +1493,24 @@ export default function App() {
         {showMobileNav && (
           <div className="mobile-nav-dropdown" style={{ borderTop: `1px solid ${line}`, background: "#0a0a09", padding: "8px 24px 16px", display: "flex", flexDirection: "column" }}>
             <a href="#shop" onClick={(e) => { backToShop(e); setShowMobileNav(false); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Shop</a>
+
+            <div style={{ padding: "12px 0", borderBottom: `1px solid ${line}` }}>
+              <div style={{ fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase", color: gold, marginBottom: 10 }}>Shop by Category</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {categoryOptions.filter((c) => c !== "All").map((c) => (
+                  <div
+                    key={c}
+                    onClick={() => {
+                      setCategory(c);
+                      setShowMobileNav(false);
+                      document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                    style={{ padding: "7px 13px", border: `1px solid ${c === category ? gold : line}`, color: c === category ? goldHi : stone, fontSize: 12.5, cursor: "pointer" }}
+                  >{c}</div>
+                ))}
+              </div>
+            </div>
+
             <a href="#visualizer" onClick={() => setShowMobileNav(false)} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Preview Your Wall</a>
             <a href="#faq" onClick={() => setShowMobileNav(false)} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>FAQs</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); if (user) setShowProfile(true); else setShowLogin(true); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Sell Your Art</a>
