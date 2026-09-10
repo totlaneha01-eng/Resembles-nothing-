@@ -332,9 +332,9 @@ function Badge({ count }) {
   );
 }
 
-function IconBtn({ onClick, children, count }) {
+function IconBtn({ onClick, children, count, className, title }) {
   return (
-    <button onClick={onClick} style={{
+    <button onClick={onClick} className={className} title={title} style={{
       position: "relative", background: "transparent", border: "1px solid rgba(201,162,75,0.28)",
       width: 42, height: 42, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
       color: "#efe7d6", cursor: "pointer", transition: "border-color .2s"
@@ -452,7 +452,7 @@ function isTapestryFormat(product) {
 // the product page, one click away — the grid's job is to let a visitor
 // see many pieces at once and think "which one is mine?", not to sell each
 // card on its own.
-function ProductCard({ p, gold, goldHi, cream, stone, priceFmt, openProduct }) {
+function ProductCard({ p, gold, goldHi, cream, stone, priceFmt, openProduct, isSaved, onToggleSaved }) {
   const [ref, inView] = useInView(0.12);
   const revealClass = isTapestryFormat(p) ? "reveal-tapestry" : "reveal-canvas";
   return (
@@ -464,6 +464,18 @@ function ProductCard({ p, gold, goldHi, cream, stone, priceFmt, openProduct }) {
     >
       {p.sold && (
         <div style={{ position: "absolute", top: 10, left: 10, zIndex: 2, background: "rgba(10,10,9,0.88)", border: `1px solid ${gold}`, color: goldHi, fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", padding: "5px 9px" }}>Sold</div>
+      )}
+      {onToggleSaved && p.dbId && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleSaved(p); }}
+          aria-label={isSaved ? "Remove from Saved" : "Save this design"}
+          style={{
+            position: "absolute", top: 10, right: 10, zIndex: 2, width: 30, height: 30, borderRadius: "50%",
+            background: "rgba(10,10,9,0.72)", border: `1px solid ${isSaved ? gold : "rgba(201,162,75,0.28)"}`,
+            color: isSaved ? goldHi : cream, display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 14, cursor: "pointer"
+          }}
+        >{isSaved ? "♥" : "♡"}</button>
       )}
       <div style={{ aspectRatio: "3/4", overflow: "hidden" }}>
         <img src={p.images[0]} alt={p.name} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -859,7 +871,7 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
 }
 
 export default function App() {
-  const [page, setPage] = useState("shop"); // "shop" | "product" | "artist" | "admin"
+  const [page, setPage] = useState("shop"); // "shop" | "product" | "artist" | "admin" | "explore" | "worlds" | "saved"
   const [viewArtist, setViewArtist] = useState(null);
   const [orders, setOrders] = useState([]);
   const [viewProduct, setViewProduct] = useState(null);
@@ -896,6 +908,9 @@ export default function App() {
   const [dbProducts, setDbProducts] = useState([]);
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
+  const [savedIds, setSavedIds] = useState(() => new Set()); // productIds in the current user's wishlist
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   function refetchProducts() {
     apiFetch("/products")
@@ -903,6 +918,43 @@ export default function App() {
       .catch(() => {
         // Shop still works off the built-in CATALOG if the API's unreachable.
       });
+  }
+
+  // Loads which products the signed-in user has saved, so hearts render
+  // filled on load instead of only after a session of clicking them.
+  function refetchSaved() {
+    if (!getToken()) { setSavedIds(new Set()); return; }
+    apiFetch("/saved")
+      .then((data) => setSavedIds(new Set((data.saved || []).map((s) => s.productId))))
+      .catch(() => {});
+  }
+
+  // Optimistic toggle — flips the heart instantly, then reconciles with the
+  // server; on failure it reverts so the UI never lies about saved state.
+  // Keyed by dbId (the real Product row id), not id (which is the slug for
+  // DB-backed products, or a fake local id for the hardcoded CATALOG
+  // fallback) — the backend only knows real row ids.
+  function toggleSaved(product) {
+    if (!getToken()) { setShowLogin(true); return; }
+    if (!product.dbId) { showToast("This design can't be saved yet"); return; }
+    const id = product.dbId;
+    const wasSaved = savedIds.has(id);
+    setSavedIds((prev) => {
+      const next = new Set(prev);
+      wasSaved ? next.delete(id) : next.add(id);
+      return next;
+    });
+    const req = wasSaved
+      ? apiFetch(`/saved/${id}`, { method: "DELETE" })
+      : apiFetch(`/saved/${id}`, { method: "POST" });
+    req.catch(() => {
+      setSavedIds((prev) => {
+        const next = new Set(prev);
+        wasSaved ? next.add(id) : next.delete(id);
+        return next;
+      });
+      showToast("Couldn't update Saved — try again");
+    });
   }
 
   // Load real products from the database on mount, and restore a logged-in
@@ -915,6 +967,7 @@ export default function App() {
       apiFetch("/auth/me")
         .then((data) => setUser(data.user))
         .catch(() => clearToken());
+      refetchSaved();
     }
   }, []);
 
@@ -1021,6 +1074,7 @@ export default function App() {
       setUser(data.user);
       setShowLogin(false);
       showToast(`Signed in as ${data.user.name}`);
+      refetchSaved();
     } catch (err) {
       setAuthError(err instanceof ApiError ? err.message : "Something went wrong — try again.");
     } finally {
@@ -1032,6 +1086,7 @@ export default function App() {
     clearToken();
     setUser(null);
     setShowAccount(false);
+    setSavedIds(new Set());
     showToast("Signed out");
   }
 
@@ -1194,6 +1249,18 @@ export default function App() {
   // via the admin panel (e.g. "Psychedelic") — no code change needed.
   const categoryOptions = ["All", ...new Set(allProducts.map((p) => p.category))];
 
+  // Real substring search over the name/category/blurb of whatever's already
+  // loaded client-side — no extra round trip, same data the shop grid uses.
+  const searchResults = (() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return allProducts.filter((p) =>
+      p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q) || (p.blurb || "").toLowerCase().includes(q)
+    );
+  })();
+
+  const savedProductsList = allProducts.filter((p) => p.dbId && savedIds.has(p.dbId));
+
   // Which formats the design currently open on the product page can be
   // ordered in, and a shimmed copy of it reflecting whichever one is
   // selected — lets sizesFor/defaultSizeFor/isTapestryFormat, all written
@@ -1270,6 +1337,18 @@ export default function App() {
     setPage("artist");
     window.scrollTo(0, 0);
   }
+  function openExplore() {
+    setPage("explore");
+    window.scrollTo(0, 0);
+  }
+  function openWorlds() {
+    setPage("worlds");
+    window.scrollTo(0, 0);
+  }
+  function openSaved() {
+    setPage("saved");
+    window.scrollTo(0, 0);
+  }
 
   const ink = "#0a0a09", ink2 = "#141311", gold = "#c9a24b", goldHi = "#e9cc84",
     cream = "#efe7d6", stone = "#948c78", line = "rgba(201,162,75,0.28)";
@@ -1277,7 +1356,7 @@ export default function App() {
   return (
     <>
     {showIntro && <IntroSplash onDone={() => setShowIntro(false)} />}
-    <div style={{ background: ink, color: cream, fontFamily: "'Jost', sans-serif", fontWeight: 300, minHeight: "100vh" }}>
+    <div className="app-root" style={{ background: ink, color: cream, fontFamily: "'Jost', sans-serif", fontWeight: 300, minHeight: "100vh" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&family=Caveat:wght@600;700&display=swap');
         * { box-sizing: border-box; }
@@ -1302,6 +1381,9 @@ export default function App() {
         .cat-card { transition: transform .25s ease; }
         .cat-card:hover { transform: translateY(-4px); }
         .cat-card:hover .cat-card-img { border-color: #c9a24b !important; opacity: 1 !important; }
+        .pill-card { transition: transform .25s ease; }
+        .pill-card:hover { transform: translateY(-4px); }
+        .pill-card:hover .pill-card-img { border-color: #c9a24b !important; }
 
         .prod-card { transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease; }
         .prod-card:hover { transform: translateY(-4px); border-color: rgba(201,162,75,0.55) !important; box-shadow: 0 24px 48px rgba(0,0,0,0.4); }
@@ -1355,6 +1437,10 @@ export default function App() {
         input:focus, textarea:focus, select:focus { border-color: ${gold} !important; box-shadow: 0 0 0 1px ${gold}; }
         input, textarea, select, button { font-family: inherit; }
 
+        .bottom-tabbar { display: none; }
+        .bottom-tab { cursor: pointer; transition: color .2s ease; }
+        .bottom-tab:hover { color: ${goldHi} !important; }
+
         @media (max-width: 900px) {
           .navlinks { display: none !important; }
           /* Mobile header is 3 zones — hamburger, centered wordmark, icons —
@@ -1374,6 +1460,18 @@ export default function App() {
              achievable at all on a real phone width, not just a nice-to-have. */
           .currency-btn { width: 42px; height: 42px; border-radius: 50%; padding: 0 !important; display: flex; align-items: center; justify-content: center; }
           .currency-btn-label { display: none; }
+          /* Mobile header slims to just search + cart, matching the app-style
+             mockup — bell, currency and account move into the hamburger
+             dropdown / bottom tab bar instead of crowding this row. Nothing
+             they did is lost, just relocated. */
+          .icon-notifs, .icon-account, .currency-btn { display: none !important; }
+          /* Fixed bottom tab bar needs the page content to clear it, or the
+             last ~70px of every screen (including modals/drawers that anchor
+             to the bottom) sits underneath it. */
+          .app-root { padding-bottom: 70px; }
+          .bottom-tabbar { display: flex !important; }
+          .whatsapp-fab { bottom: 86px !important; }
+          .toast-banner { bottom: 86px !important; }
           /* .navlinks (Shop / Preview Your Wall / FAQs / Sell Your Art /
              Find Your Art Persona) had no mobile replacement at all — just
              hidden with nothing standing in for it, so those pages
@@ -1381,7 +1479,7 @@ export default function App() {
              on any phone. .mobile-nav-btn + the dropdown it toggles is
              that replacement. */
           .mobile-nav-btn { display: flex !important; }
-          .hero-grid { grid-template-columns: 1fr !important; }
+          .hero-grid, .explore-hero-grid { grid-template-columns: 1fr !important; }
           /* Below the 2-column breakpoint the 3-photo tilted collage takes
              the full row width instead of ~45% of it, which — even once
              correctly sized to not overlap the badges above (previously
@@ -1431,8 +1529,11 @@ export default function App() {
           >
             {showMobileNav ? "✕" : "☰"}
           </button>
-          <div onClick={backToShop} className="brand-wordmark" style={{ cursor: "pointer", fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: cream, letterSpacing: "0.01em" }}>
-            resembles<em style={{ color: gold, fontStyle: "normal" }}>.nothing</em>
+          <div className="brand-wordmark-wrap">
+            <div onClick={backToShop} className="brand-wordmark" style={{ cursor: "pointer", fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: cream, letterSpacing: "0.01em" }}>
+              resembles<em style={{ color: gold, fontStyle: "normal" }}>.nothing</em>
+            </div>
+            <div className="brand-tagline" style={{ fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: stone, textAlign: "center", marginTop: 2 }}>Portals to different worlds</div>
           </div>
           <nav style={{ display: "flex", gap: 28, fontSize: 13 }} className="navlinks">
             <a href="#shop" onClick={backToShop} style={{ color: stone, textDecoration: "none" }}>Shop</a>
@@ -1442,7 +1543,9 @@ export default function App() {
             <a href="#" onClick={(e) => { e.preventDefault(); setShowQuiz(true); }} style={{ color: stone, textDecoration: "none" }}>Find Your Art Persona</a>
           </nav>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }} className="header-icons">
-            <div style={{ position: "relative" }}>
+            <IconBtn className="icon-search" onClick={() => { setShowSearch(true); setShowNotifs(false); setShowAccount(false); }} title="Search">🔍</IconBtn>
+
+            <div style={{ position: "relative" }} className="icon-notifs">
               <IconBtn onClick={() => { setShowNotifs((s) => !s); setShowAccount(false); }} count={unreadNotifs}>🔔</IconBtn>
               {showNotifs && (
                 <div style={{ position: "absolute", right: 0, top: 52, width: 320, background: "#0f0e0c", border: `1px solid ${line}`, zIndex: 50, padding: 10 }}>
@@ -1469,7 +1572,7 @@ export default function App() {
 
             <IconBtn onClick={() => setShowCart(true)} count={cartCount}>🛍</IconBtn>
 
-            <div style={{ position: "relative" }}>
+            <div style={{ position: "relative" }} className="icon-account">
               <IconBtn onClick={() => { if (user) { setShowAccount((s) => !s); setShowNotifs(false); } else setShowLogin(true); }}>
                 {user ? user.name[0].toUpperCase() : "👤"}
               </IconBtn>
@@ -1511,10 +1614,22 @@ export default function App() {
               </div>
             </div>
 
+            <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); openWorlds(); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Worlds</a>
             <a href="#visualizer" onClick={() => setShowMobileNav(false)} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Preview Your Wall</a>
             <a href="#faq" onClick={() => setShowMobileNav(false)} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>FAQs</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); if (user) setShowProfile(true); else setShowLogin(true); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Sell Your Art</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); setShowQuiz(true); }} style={{ color: cream, textDecoration: "none", padding: "12px 0" }}>Find Your Art Persona</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); setShowQuiz(true); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Find Your Art Persona</a>
+
+            {/* Bell + currency move here on mobile since the header row itself
+                is slimmed down to just search + cart, matching the app-style
+                mockup — nothing that used to live in the header is lost. */}
+            <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); setShowNotifs(true); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              Notifications {unreadNotifs > 0 && <span style={{ background: gold, color: ink, borderRadius: "50%", width: 18, height: 18, fontSize: 10.5, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{unreadNotifs}</span>}
+            </a>
+            <div onClick={() => setCurrencyMode((m) => (m === "INR" ? "USD" : "INR"))} style={{ color: cream, padding: "12px 0", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+              <span>Currency</span>
+              <span style={{ color: goldHi, fontSize: 12.5 }}>{currencyMode === "INR" ? "₹ INR" : "$ USD"} — tap to switch</span>
+            </div>
           </div>
         )}
       </header>
@@ -1659,7 +1774,7 @@ export default function App() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "28px 24px" }} className="prod-grid">
             {filtered.map((p) => (
-              <ProductCard key={p.id} p={p} gold={gold} goldHi={goldHi} cream={cream} stone={stone} priceFmt={fmtProduct} openProduct={openProduct} />
+              <ProductCard key={p.id} p={p} gold={gold} goldHi={goldHi} cream={cream} stone={stone} priceFmt={fmtProduct} openProduct={openProduct} isSaved={!!p.dbId && savedIds.has(p.dbId)} onToggleSaved={toggleSaved} />
             ))}
           </div>
 
@@ -1832,6 +1947,139 @@ export default function App() {
         </div>
       </section>
       </>
+      )}
+
+      {/* EXPLORE — quiz-first hero + the pill-card collection + a promo
+          banner, matching the app-style mockup. Home (above) keeps its own
+          hero and catalogue untouched; this is a second, distinct way in. */}
+      {page === "explore" && (
+        <>
+          <section style={{ padding: "56px 24px 0" }}>
+            <div style={{ maxWidth: 1180, margin: "0 auto", display: "grid", gridTemplateColumns: "1.05fr 0.95fr", gap: 48, alignItems: "center" }} className="explore-hero-grid">
+              <div className="fade-up">
+                <Eyebrow>60-Second Quiz</Eyebrow>
+                <h1 style={{ fontSize: "clamp(2.1rem,4.2vw,3.3rem)", lineHeight: 1.08, margin: "18px 0" }}>What belongs on your wall?</h1>
+                <p style={{ color: stone, fontSize: 15.5, lineHeight: 1.75, maxWidth: 420, marginBottom: 26 }}>Discover your art persona in 60 seconds.</p>
+                <Btn onClick={() => setShowQuiz(true)}>Take the Quiz →</Btn>
+              </div>
+              <div style={{ position: "relative", borderRadius: 18, overflow: "hidden", aspectRatio: "4/5" }}>
+                <img src="/products/ancestral-sun.png" alt="" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 42%, rgba(10,10,9,0.8))" }} />
+                <div style={{ position: "absolute", left: 22, right: 22, bottom: 20, fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", fontSize: 19, color: cream }}>Different walls. Same souls.</div>
+              </div>
+            </div>
+          </section>
+
+          <section style={{ padding: "90px 24px 0" }}>
+            <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 16, marginBottom: 36 }}>
+                <div>
+                  <Eyebrow>Explore</Eyebrow>
+                  <h2 style={{ fontSize: "clamp(1.9rem,3.8vw,2.8rem)", marginTop: 12 }}>The Collection</h2>
+                  <div style={{ color: stone, fontSize: 12.5, marginTop: 8, letterSpacing: "0.1em", textTransform: "uppercase" }}>Nine pieces. Zero repeats.</div>
+                </div>
+                <div style={{ textAlign: "right", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: stone, lineHeight: 1.7 }}>Art for every<br />version of you.</div>
+              </div>
+
+              <div style={{ display: "flex", gap: 20, overflowX: "auto", padding: "4px 4px 16px" }} className="cat-card-row">
+                {categoryOptions.filter((c) => c !== "All").map((c) => {
+                  const cardImg = allProducts.find((p) => p.category === c)?.images?.[0] || PLACEHOLDER_IMG;
+                  return (
+                    <div key={c} className="pill-card" onClick={() => { setCategory(c); backToShop(); requestAnimationFrame(() => document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" })); }} style={{ flex: "0 0 auto", width: 138, cursor: "pointer" }}>
+                      <div className="pill-card-img" style={{ width: "100%", height: 220, borderRadius: 999, overflow: "hidden", border: `1px solid ${line}` }}>
+                        <img src={cardImg} alt={c} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      </div>
+                      <div style={{ textAlign: "center", marginTop: 12 }}>
+                        <div style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: cream }}>{c}</div>
+                        <div style={{ width: 18, height: 1, background: gold, margin: "6px auto" }} />
+                        <div style={{ fontSize: 10.5, color: stone, fontStyle: "italic" }}>{CATEGORY_TAGLINES[c] || "Explore the collection."}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
+          <section style={{ marginTop: 80, position: "relative", minHeight: 220, display: "flex", alignItems: "center", padding: "50px 24px", overflow: "hidden" }}>
+            <img src="/products/panther-queen.png" alt="" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(10,10,9,0.94), rgba(10,10,9,0.55))" }} />
+            <div style={{ position: "relative", maxWidth: 1180, margin: "0 auto", width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+              <div>
+                <Eyebrow>Not just décor</Eyebrow>
+                <h2 style={{ fontSize: "clamp(1.5rem,3vw,2.2rem)", marginTop: 12, fontStyle: "italic" }}>Portals to different worlds.</h2>
+              </div>
+              <button onClick={openWorlds} style={{ width: 46, height: 46, borderRadius: "50%", border: `1px solid ${gold}`, background: "none", color: goldHi, fontSize: 18, cursor: "pointer", flexShrink: 0 }}>→</button>
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* WORLDS — every theme as its own full-screen portal, the "browse by
+          category" destination the bottom tab links to. */}
+      {page === "worlds" && (
+        <section style={{ padding: "70px 24px 90px" }}>
+          <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+            <div style={{ textAlign: "center", maxWidth: 600, margin: "0 auto 48px" }}>
+              <Eyebrow>Worlds</Eyebrow>
+              <h1 style={{ fontSize: "clamp(1.9rem,3.8vw,2.9rem)", marginTop: 14 }}>Pick your portal.</h1>
+              <p style={{ color: stone, fontSize: 14.5, marginTop: 12 }}>Every theme we make art for — pick one to jump straight to it.</p>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 28 }}>
+              {categoryOptions.filter((c) => c !== "All").map((c) => {
+                const cardImg = allProducts.find((p) => p.category === c)?.images?.[0] || PLACEHOLDER_IMG;
+                const count = allProducts.filter((p) => p.category === c).length;
+                return (
+                  <div key={c} onClick={() => { setCategory(c); backToShop(); requestAnimationFrame(() => document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" })); }} style={{ cursor: "pointer" }} className="pill-card">
+                    <div className="pill-card-img" style={{ width: "100%", aspectRatio: "3/4.4", borderRadius: 999, overflow: "hidden", border: `1px solid ${line}` }}>
+                      <img src={cardImg} alt={c} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    </div>
+                    <div style={{ textAlign: "center", marginTop: 12 }}>
+                      <div style={{ fontSize: 12.5, letterSpacing: "0.12em", textTransform: "uppercase", color: cream }}>{c}</div>
+                      <div style={{ width: 18, height: 1, background: gold, margin: "6px auto" }} />
+                      <div style={{ fontSize: 11, color: stone, fontStyle: "italic" }}>{CATEGORY_TAGLINES[c] || "Explore the collection."}</div>
+                      <div style={{ fontSize: 10, color: stone, marginTop: 4 }}>{count} piece{count === 1 ? "" : "s"}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* SAVED — a real per-account wishlist (SavedProduct in the DB),
+          gated behind login same as cart/orders. */}
+      {page === "saved" && (
+        <section style={{ padding: "70px 24px 90px" }}>
+          <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+            <div style={{ textAlign: "center", maxWidth: 600, margin: "0 auto 48px" }}>
+              <Eyebrow>Saved</Eyebrow>
+              <h1 style={{ fontSize: "clamp(1.9rem,3.8vw,2.9rem)", marginTop: 14 }}>Your wishlist.</h1>
+            </div>
+
+            {!user && (
+              <div style={{ textAlign: "center", padding: "50px 24px", border: `1px solid ${line}` }}>
+                <p style={{ color: stone, fontSize: 14, marginBottom: 20 }}>Sign in to save designs and find them here later.</p>
+                <Btn onClick={() => setShowLogin(true)}>Sign In</Btn>
+              </div>
+            )}
+
+            {user && savedProductsList.length === 0 && (
+              <div style={{ textAlign: "center", padding: "50px 24px", border: `1px solid ${line}` }}>
+                <p style={{ color: stone, fontSize: 14 }}>Nothing saved yet — tap the ♡ on any design to add it here.</p>
+              </div>
+            )}
+
+            {user && savedProductsList.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "28px 24px" }} className="prod-grid">
+                {savedProductsList.map((p) => (
+                  <ProductCard key={p.id} p={p} gold={gold} goldHi={goldHi} cream={cream} stone={stone} priceFmt={fmtProduct} openProduct={openProduct} isSaved={true} onToggleSaved={toggleSaved} />
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
       )}
 
       {page === "product" && viewProduct && (
@@ -2027,7 +2275,7 @@ export default function App() {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "28px 24px" }} className="prod-grid">
               {CATALOG.filter((p) => p.artist === viewArtist).map((p) => (
-                <ProductCard key={p.id} p={p} gold={gold} goldHi={goldHi} cream={cream} stone={stone} priceFmt={fmtProduct} openProduct={openProduct} />
+                <ProductCard key={p.id} p={p} gold={gold} goldHi={goldHi} cream={cream} stone={stone} priceFmt={fmtProduct} openProduct={openProduct} isSaved={!!p.dbId && savedIds.has(p.dbId)} onToggleSaved={toggleSaved} />
               ))}
             </div>
           </div>
@@ -2191,7 +2439,7 @@ export default function App() {
 
       {/* TOAST */}
       {toast && (
-        <div style={{
+        <div className="toast-banner" style={{
           position: "fixed", bottom: 26, left: "50%", transform: "translateX(-50%)", background: "#0f0e0c",
           border: `1px solid ${gold}`, color: cream, padding: "12px 22px", fontSize: 13, zIndex: 700
         }}>{toast}</div>
@@ -2202,6 +2450,7 @@ export default function App() {
         href="https://wa.me/918450955977"
         target="_blank"
         rel="noopener"
+        className="whatsapp-fab"
         style={{
           position: "fixed", bottom: 26, right: 26, zIndex: 600, background: "#25D366", color: "#0a0a09",
           width: 54, height: 54, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
@@ -2209,6 +2458,37 @@ export default function App() {
         }}
         title="Chat with us on WhatsApp"
       >💬</a>
+
+      {/* BOTTOM TAB BAR — mobile only, mirrors the app-style nav mockup.
+          Home = today's homepage as-is. Explore = the quiz-hero/Collection/
+          banner page built to match that mockup. Worlds = full-screen
+          category browser. Saved = wishlist. Account opens the same panel
+          the header's account icon does, just reachable from here on mobile
+          since that icon is hidden below 900px. */}
+      <nav className="bottom-tabbar" style={{
+        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 650, background: "rgba(10,10,9,0.96)",
+        backdropFilter: "blur(10px)", borderTop: `1px solid ${line}`, justifyContent: "space-around", padding: "9px 4px 12px"
+      }}>
+        {[
+          { key: "shop", label: "Home", icon: "🏠", onClick: backToShop },
+          { key: "explore", label: "Explore", icon: "▦", onClick: openExplore },
+          { key: "worlds", label: "Worlds", icon: "◐", onClick: openWorlds },
+          { key: "saved", label: "Saved", icon: "♡", onClick: openSaved },
+          { key: "account", label: "Account", icon: "◯", onClick: () => { if (user) setShowProfile(true); else setShowLogin(true); } },
+        ].map((t) => {
+          const active = t.key === "account" ? showProfile : page === t.key;
+          return (
+            <div key={t.key} className="bottom-tab" onClick={t.onClick} style={{
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+              color: active ? goldHi : stone, fontSize: 10, flex: 1
+            }}>
+              <span style={{ fontSize: 19, lineHeight: 1 }}>{t.icon}</span>
+              {t.label}
+              {active && <span style={{ width: 14, height: 1.5, background: goldHi, marginTop: 1 }} />}
+            </div>
+          );
+        })}
+      </nav>
 
       {/* CART DRAWER */}
       {showCart && (
@@ -2281,6 +2561,44 @@ export default function App() {
             <button onClick={() => { setUser({ name: "Guest", email: "guest@resemblesnothing.com" }); setShowLogin(false); }} style={{ background: "none", border: "none", color: stone, fontSize: 12, textDecoration: "underline", cursor: "pointer" }}>Continue as guest</button>
           </div>
         </Modal>
+      )}
+
+      {/* SEARCH MODAL — real client-side search over allProducts (name,
+          category, blurb), same data the shop grid already has in memory. */}
+      {showSearch && (
+        <div onClick={() => setShowSearch(false)} style={{ position: "fixed", inset: 0, background: "rgba(5,5,4,0.8)", zIndex: 500, display: "flex", flexDirection: "column", alignItems: "center", padding: "60px 20px 20px" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 760 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, border: `1px solid ${gold}`, background: "#0f0e0c", padding: "12px 16px" }}>
+              <span style={{ fontSize: 16 }}>🔍</span>
+              <input
+                autoFocus
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search designs — name, mood, category…"
+                style={{ flex: 1, background: "none", border: "none", outline: "none", color: cream, fontSize: 15, fontFamily: "inherit" }}
+              />
+              <button onClick={() => setShowSearch(false)} style={{ background: "none", border: "none", color: stone, fontSize: 20, cursor: "pointer" }}>×</button>
+            </div>
+
+            <div style={{ marginTop: 20, maxHeight: "70vh", overflowY: "auto" }}>
+              {searchQuery.trim() === "" && (
+                <p style={{ color: stone, fontSize: 13, textAlign: "center", marginTop: 20 }}>Start typing to search the collection.</p>
+              )}
+              {searchQuery.trim() !== "" && searchResults.length === 0 && (
+                <p style={{ color: stone, fontSize: 13, textAlign: "center", marginTop: 20 }}>Nothing matches "{searchQuery}" — try a category like "Spiritual" or "Aviation".</p>
+              )}
+              {searchResults.length > 0 && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px 16px" }} className="prod-grid">
+                  {searchResults.map((p) => (
+                    <ProductCard key={p.id} p={p} gold={gold} goldHi={goldHi} cream={cream} stone={stone} priceFmt={fmtProduct}
+                      openProduct={(prod) => { setShowSearch(false); openProduct(prod); }}
+                      isSaved={!!p.dbId && savedIds.has(p.dbId)} onToggleSaved={toggleSaved} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* PROFILE MODAL */}

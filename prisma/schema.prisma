@@ -27,6 +27,7 @@ model User {
   submissions ArtistSubmission[]
   products    Product[]          @relation("ArtistProducts")
   cartItems   CartItem[]
+  savedProducts SavedProduct[]
   orders      Order[]
   reviews     Review[]
   quizResult  QuizResult?
@@ -92,6 +93,7 @@ model Product {
   submissionId String?           @unique
 
   cartItems  CartItem[]
+  savedBy    SavedProduct[]
   orderItems OrderItem[]
   reviews    Review[]
   chatMessages ChatMessage[]
@@ -152,6 +154,19 @@ model CartItem {
   createdAt DateTime      @default(now())
 
   @@unique([userId, productId, format, sizeLabel])
+}
+
+// The "Saved" / wishlist heart on a product card — unlike CartItem, this
+// isn't tied to a format or size, just "I like this design."
+model SavedProduct {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
 }
 
 enum OrderStatus {
