@@ -880,6 +880,62 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
   );
 }
 
+// Real, DB-connected — same as AddProductsPanel above, unlike the rest of
+// the admin dashboard's session-only mock stats.
+function DesignRequestsPanel({ gold, goldHi, cream, stone, line, ink2 }) {
+  const [requests, setRequests] = useState(null); // null = loading
+  const [error, setError] = useState("");
+
+  function refetch() {
+    apiFetch("/design-requests")
+      .then((data) => setRequests(data.requests || []))
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load requests."));
+  }
+  useEffect(() => { refetch(); }, []);
+
+  async function setStatus(id, status) {
+    try {
+      await apiFetch(`/design-requests/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+      refetch();
+    } catch {
+      // best-effort — the row just won't update; refetch() on next panel view will pick up the real state
+    }
+  }
+
+  const STATUS_COLOR = { NEW: goldHi, REVIEWED: stone, DONE: "#6ba36b" };
+
+  return (
+    <div style={{ border: `1px solid ${line}`, padding: 24, marginBottom: 44 }}>
+      <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Design Requests</div>
+      {error && <p style={{ color: "#c9524b", fontSize: 12.5 }}>{error}</p>}
+      {requests === null && !error && <p style={{ color: stone, fontSize: 12.5 }}>Loading…</p>}
+      {requests && requests.length === 0 && <p style={{ color: stone, fontSize: 12.5 }}>No requests yet — they'll show up here as people submit ideas.</p>}
+      {requests && requests.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {requests.map((r) => (
+            <div key={r.id} style={{ background: ink2, border: `1px solid ${line}`, padding: "14px 16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 13, color: cream }}>{r.user?.name || r.name || "Anonymous"} <span style={{ color: stone, fontSize: 11 }}>· {r.user?.email || r.contact || "no contact given"}</span></div>
+                <div style={{ fontSize: 10.5, color: stone }}>{new Date(r.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</div>
+              </div>
+              <p style={{ fontSize: 13, color: cream, lineHeight: 1.6, marginBottom: 10 }}>{r.message}</p>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {["NEW", "REVIEWED", "DONE"].map((s) => (
+                  <button key={s} onClick={() => setStatus(r.id, s)} style={{
+                    background: "none", cursor: "pointer", fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase",
+                    padding: "5px 10px", border: `1px solid ${r.status === s ? STATUS_COLOR[s] : line}`,
+                    color: r.status === s ? STATUS_COLOR[s] : stone,
+                  }}>{s}</button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [page, setPage] = useState("shop"); // "shop" | "product" | "artist" | "admin" | "explore" | "worlds" | "saved" | "about" | "shipping" | "contact" | "terms" | "privacy"
   const [viewArtist, setViewArtist] = useState(null);
@@ -923,6 +979,31 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterBusy, setNewsletterBusy] = useState(false);
+  const [showDesignRequest, setShowDesignRequest] = useState(false);
+  const [designRequestMsg, setDesignRequestMsg] = useState("");
+  const [designRequestName, setDesignRequestName] = useState("");
+  const [designRequestContact, setDesignRequestContact] = useState("");
+  const [designRequestBusy, setDesignRequestBusy] = useState(false);
+  const [designRequestSent, setDesignRequestSent] = useState(false);
+
+  async function submitDesignRequest(e) {
+    e.preventDefault();
+    setDesignRequestBusy(true);
+    try {
+      await apiFetch("/design-requests", {
+        method: "POST",
+        body: JSON.stringify({ message: designRequestMsg, name: designRequestName, contact: designRequestContact }),
+      });
+      setDesignRequestSent(true);
+      setDesignRequestMsg("");
+      setDesignRequestName("");
+      setDesignRequestContact("");
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : "Something went wrong — try again.");
+    } finally {
+      setDesignRequestBusy(false);
+    }
+  }
 
   async function subscribeNewsletter(e) {
     e.preventDefault();
@@ -1575,6 +1656,7 @@ export default function App() {
             <a href="#faq" style={{ color: stone, textDecoration: "none" }}>FAQs</a>
             <a href="#" onClick={(e) => { e.preventDefault(); if (user) setShowProfile(true); else setShowLogin(true); }} style={{ color: stone, textDecoration: "none" }}>Sell Your Art</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setShowQuiz(true); }} style={{ color: stone, textDecoration: "none" }}>Find Your Art Persona</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); setDesignRequestSent(false); setShowDesignRequest(true); }} style={{ color: stone, textDecoration: "none" }}>Request a Design</a>
           </nav>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }} className="header-icons">
             <IconBtn className="icon-search" onClick={() => { setShowSearch(true); setShowNotifs(false); setShowAccount(false); }} title="Search">🔍</IconBtn>
@@ -1653,6 +1735,7 @@ export default function App() {
             <a href="#faq" onClick={() => setShowMobileNav(false)} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>FAQs</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); if (user) setShowProfile(true); else setShowLogin(true); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Sell Your Art</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); setShowQuiz(true); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Find Your Art Persona</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); setDesignRequestSent(false); setShowDesignRequest(true); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Request a Design</a>
 
             {/* Bell + currency move here on mobile since the header row itself
                 is slimmed down to just search + cart, matching the app-style
@@ -2444,6 +2527,8 @@ export default function App() {
               categoryOptions={categoryOptions} onAdded={refetchProducts}
             />
 
+            <DesignRequestsPanel gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink2={ink2} />
+
             {/* Stat cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 14, marginBottom: 44 }} className="admin-stat-grid">
               {[
@@ -2761,6 +2846,47 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* REQUEST A DESIGN MODAL — a free-text idea box, reviewed by hand
+          (no automated quoting). Logged-in shoppers just describe the idea;
+          signed-out visitors also leave a name + way to reach them back. */}
+      {showDesignRequest && (
+        <Modal onClose={() => setShowDesignRequest(false)} width={480}>
+          <button onClick={() => setShowDesignRequest(false)} style={{ position: "absolute", top: 18, right: 18, background: "none", border: "none", color: stone, fontSize: 20, cursor: "pointer" }}>×</button>
+          {designRequestSent ? (
+            <>
+              <div style={{ fontSize: 34, marginBottom: 14 }}>✓</div>
+              <h3 style={{ fontSize: 22, marginBottom: 10 }}>Got it.</h3>
+              <p style={{ color: stone, fontSize: 13.5, lineHeight: 1.7, marginBottom: 20 }}>We read every idea ourselves — if it's something we can make, we'll reach out to talk sizing, price, and timeline.</p>
+              <Btn onClick={() => setShowDesignRequest(false)}>Close</Btn>
+            </>
+          ) : (
+            <>
+              <Eyebrow>Request a Design</Eyebrow>
+              <h3 style={{ fontSize: 22, margin: "14px 0 8px" }}>Have an idea? Tell us.</h3>
+              <p style={{ color: stone, fontSize: 13, lineHeight: 1.7, marginBottom: 20 }}>Describe what you're picturing — a mood, a subject, a piece you've seen and want reimagined. We'll tell you if it's something we can make.</p>
+              <form onSubmit={submitDesignRequest}>
+                <label style={{ display: "block", marginBottom: 16 }}>
+                  <span style={{ display: "block", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: stone, marginBottom: 7 }}>Your idea</span>
+                  <textarea
+                    required value={designRequestMsg} onChange={(e) => setDesignRequestMsg(e.target.value)}
+                    placeholder="I want a design like... / something that feels like..."
+                    rows={5}
+                    style={{ width: "100%", background: "#141311", border: `1px solid ${line}`, color: cream, padding: "12px 14px", fontSize: 14, fontFamily: "inherit", outline: "none", resize: "vertical", boxSizing: "border-box" }}
+                  />
+                </label>
+                {!user && (
+                  <>
+                    <Field label="Your Name" value={designRequestName} onChange={(e) => setDesignRequestName(e.target.value)} placeholder="Your name" required />
+                    <Field label="How should we reach you?" value={designRequestContact} onChange={(e) => setDesignRequestContact(e.target.value)} placeholder="Email, phone, or WhatsApp number" required />
+                  </>
+                )}
+                <Btn full type="submit" disabled={designRequestBusy} style={{ marginTop: 6 }}>{designRequestBusy ? "…" : "Send Idea"}</Btn>
+              </form>
+            </>
+          )}
+        </Modal>
       )}
 
       {/* PROFILE MODAL */}

@@ -1,0 +1,23 @@
+name: Keep Render service warm
+
+# Render's free tier spins the web service down after 15 minutes with no
+# HTTP traffic — the next real visitor then eats a ~30-60s cold start while
+# it wakes back up. This pings the app's own /health endpoint every 10
+# minutes, well inside that window, so it never gets the chance to sleep.
+#
+# Caveat: GitHub disables scheduled workflows on a repo after 60 days with
+# no commits at all — if that ever happens, re-enable it from the repo's
+# Actions tab (or just push any commit) rather than assuming it's still running.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping resemblesnothing.in
+        run: |
+          curl -sS -o /dev/null -w "status: %{http_code}\n" --max-time 25 https://resemblesnothing.in/health
