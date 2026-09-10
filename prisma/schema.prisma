@@ -28,6 +28,7 @@ model User {
   products    Product[]          @relation("ArtistProducts")
   cartItems   CartItem[]
   savedProducts SavedProduct[]
+  designRequests DesignRequest[]
   orders      Order[]
   reviews     Review[]
   quizResult  QuizResult?
@@ -174,6 +175,21 @@ model SavedProduct {
 model NewsletterSubscriber {
   id        String   @id @default(uuid())
   email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+// "Request a custom design" — a free-text idea from a shopper, reviewed by
+// hand (no automated quoting/production pipeline). userId is optional since
+// a visitor can submit one before creating an account, in which case name/
+// contact carry how to reach them back.
+model DesignRequest {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  name      String?
+  contact   String? // email, phone, or WhatsApp — however they want to be reached
+  message   String   @db.Text
+  status    String   @default("NEW") // NEW | REVIEWED | DONE — plain string, not worth an enum at this size
   createdAt DateTime @default(now())
 }
 
