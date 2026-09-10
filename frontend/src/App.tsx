@@ -2199,10 +2199,9 @@ export default function App() {
 
       {/* FLOATING WHATSAPP TRUST BUTTON */}
       <a
-        href="https://wa.me/910000000000"
+        href="https://wa.me/918450955977"
         target="_blank"
         rel="noopener"
-        onClick={(e) => { e.preventDefault(); showToast("Opens WhatsApp chat with our team — add your real number here"); }}
         style={{
           position: "fixed", bottom: 26, right: 26, zIndex: 600, background: "#25D366", color: "#0a0a09",
           width: 54, height: 54, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
