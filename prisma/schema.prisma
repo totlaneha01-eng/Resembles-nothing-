@@ -169,6 +169,14 @@ model SavedProduct {
   @@unique([userId, productId])
 }
 
+// "Stay in the loop" footer email capture — deliberately not tied to User,
+// since most visitors signing up here haven't made an account yet.
+model NewsletterSubscriber {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
 enum OrderStatus {
   PLACED
   BEING_MADE

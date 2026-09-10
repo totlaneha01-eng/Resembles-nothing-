@@ -203,6 +203,16 @@ const TRUST_BADGES = [
   { icon: "🎨", label: "Curated, limited runs", sub: "Each design carries a capped edition size" },
 ];
 
+// Compact icon-only strip above the footer newsletter — "Worldwide Shipping"
+// from the reference mockup was dropped in favor of "Pan-India Shipping"
+// since we don't actually ship internationally yet (see the Shipping page).
+const FOOTER_TRUST_ICONS = [
+  { icon: "🌐", label: "Pan-India Shipping" },
+  { icon: "💎", label: "Secure Payments" },
+  { icon: "✦", label: "Curated One-of-One" },
+  { icon: "∞", label: "Art Lives Forever" },
+];
+
 // Real customer video reviews. Add more entries (each optionally with a
 // `src`) as they come in — an entry without `src` renders as a "coming
 // soon" placeholder in the grid below.
@@ -871,7 +881,7 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
 }
 
 export default function App() {
-  const [page, setPage] = useState("shop"); // "shop" | "product" | "artist" | "admin" | "explore" | "worlds" | "saved"
+  const [page, setPage] = useState("shop"); // "shop" | "product" | "artist" | "admin" | "explore" | "worlds" | "saved" | "about" | "shipping" | "contact" | "terms" | "privacy"
   const [viewArtist, setViewArtist] = useState(null);
   const [orders, setOrders] = useState([]);
   const [viewProduct, setViewProduct] = useState(null);
@@ -911,6 +921,23 @@ export default function App() {
   const [savedIds, setSavedIds] = useState(() => new Set()); // productIds in the current user's wishlist
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterBusy, setNewsletterBusy] = useState(false);
+
+  async function subscribeNewsletter(e) {
+    e.preventDefault();
+    if (!newsletterEmail.trim()) return;
+    setNewsletterBusy(true);
+    try {
+      await apiFetch("/newsletter/subscribe", { method: "POST", body: JSON.stringify({ email: newsletterEmail.trim() }) });
+      setNewsletterEmail("");
+      showToast("You're on the list — new worlds land in your inbox first.");
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : "Something went wrong — try again.");
+    } finally {
+      setNewsletterBusy(false);
+    }
+  }
 
   function refetchProducts() {
     apiFetch("/products")
@@ -1349,6 +1376,10 @@ export default function App() {
     setPage("saved");
     window.scrollTo(0, 0);
   }
+  function openInfoPage(name) {
+    setPage(name);
+    window.scrollTo(0, 0);
+  }
 
   const ink = "#0a0a09", ink2 = "#141311", gold = "#c9a24b", goldHi = "#e9cc84",
     cream = "#efe7d6", stone = "#948c78", line = "rgba(201,162,75,0.28)";
@@ -1495,7 +1526,10 @@ export default function App() {
           .viz-grid { grid-template-columns: 1fr !important; }
           .tier-grid { grid-template-columns: 1fr !important; }
           .founder-grid { grid-template-columns: 1fr !important; text-align: center; }
-          .trust-grid { grid-template-columns: repeat(2,1fr) !important; }
+          .trust-grid, .trust-strip-grid { grid-template-columns: repeat(2,1fr) !important; }
+          .footer-grid { grid-template-columns: 1fr !important; text-align: center; }
+          .footer-moon { justify-self: center !important; max-width: 130px !important; }
+          .footer-caveat { justify-self: center !important; text-align: center !important; transform: none !important; margin-top: 8px; }
           .admin-stat-grid { grid-template-columns: repeat(2,1fr) !important; }
         }
         @media (max-width: 640px) {
@@ -1938,13 +1972,47 @@ export default function App() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section style={{ background: gold, color: ink, padding: "70px 24px", textAlign: "center" }}>
-        <h2 style={{ fontSize: "clamp(1.8rem,3.6vw,2.8rem)", color: ink }}>Your wall is still waiting.</h2>
-        <p style={{ marginTop: 10, opacity: 0.75 }}>Because your walls deserve better than boring.</p>
-        <div style={{ marginTop: 26 }}>
-          <Btn variant="dark" onClick={() => document.getElementById("shop").scrollIntoView({ behavior: "smooth" })}>Shop Now</Btn>
+      {/* CTA — full-bleed photo instead of the old solid-gold block, matching
+          the footer mockup's moody room treatment. */}
+      <section style={{ position: "relative", minHeight: 420, display: "flex", alignItems: "center", padding: "70px 24px", overflow: "hidden" }}>
+        <img src="/products/dusk-raga.jpg" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(10,10,9,0.94) 20%, rgba(10,10,9,0.6) 58%, rgba(10,10,9,0.3))" }} />
+        <div style={{ position: "relative", maxWidth: 1180, margin: "0 auto", width: "100%" }}>
+          <div style={{ maxWidth: 460 }}>
+            <div style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: gold, lineHeight: 1.9, marginBottom: 16 }}>Same walls.<br />Different worlds.</div>
+            <h2 style={{ fontSize: "clamp(2rem,4vw,3.1rem)", color: cream, lineHeight: 1.1 }}>Your wall is still <span style={{ color: gold, fontStyle: "italic" }}>waiting.</span></h2>
+            <p style={{ marginTop: 14, color: stone, fontSize: 13, letterSpacing: "0.04em", textTransform: "uppercase" }}>Because your walls deserve better than boring.</p>
+            <div style={{ marginTop: 28 }}>
+              <Btn onClick={() => document.getElementById("shop").scrollIntoView({ behavior: "smooth" })}>Shop Now →</Btn>
+            </div>
+          </div>
         </div>
+      </section>
+
+      {/* TRUST STRIP */}
+      <section style={{ padding: "50px 24px", borderTop: `1px solid ${line}` }}>
+        <div style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 20, textAlign: "center" }} className="trust-strip-grid">
+          {FOOTER_TRUST_ICONS.map((t, i) => (
+            <div key={i}>
+              <div style={{ fontSize: 24, color: gold, marginBottom: 10 }}>{t.icon}</div>
+              <div style={{ fontSize: 11, letterSpacing: "0.07em", textTransform: "uppercase", color: cream }}>{t.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* NEWSLETTER */}
+      <section style={{ padding: "50px 24px 60px", textAlign: "center", borderTop: `1px solid ${line}` }}>
+        <div style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: gold, marginBottom: 10 }}>Stay In The Loop</div>
+        <h2 style={{ fontSize: "clamp(1.6rem,3vw,2.2rem)", marginBottom: 26 }}>New worlds. <span style={{ color: gold, fontStyle: "italic" }}>First access.</span></h2>
+        <form onSubmit={subscribeNewsletter} style={{ display: "flex", maxWidth: 420, margin: "0 auto", border: `1px solid ${gold}` }}>
+          <input
+            type="email" required value={newsletterEmail} onChange={(e) => setNewsletterEmail(e.target.value)}
+            placeholder="Enter your email"
+            style={{ flex: 1, background: "none", border: "none", outline: "none", color: cream, padding: "14px 16px", fontSize: 13.5, fontFamily: "inherit", minWidth: 0 }}
+          />
+          <button type="submit" disabled={newsletterBusy} style={{ background: gold, border: "none", color: ink, width: 52, flexShrink: 0, cursor: newsletterBusy ? "not-allowed" : "pointer", fontSize: 16 }}>{newsletterBusy ? "…" : "→"}</button>
+        </form>
       </section>
       </>
       )}
@@ -2078,6 +2146,69 @@ export default function App() {
                 ))}
               </div>
             )}
+          </div>
+        </section>
+      )}
+
+      {/* FOOTER INFO PAGES — About/Shipping/Contact are real, current copy
+          (Shipping mirrors the FAQ answer word-for-word so the two never
+          drift apart). Terms/Privacy are honest placeholders, not invented
+          legal text — flagged as "finalizing" rather than presented as a
+          reviewed policy, until real ones are drafted. */}
+      {page === "about" && (
+        <section style={{ padding: "70px 24px 90px" }}>
+          <div style={{ maxWidth: 680, margin: "0 auto" }}>
+            <Eyebrow>About</Eyebrow>
+            <h1 style={{ fontSize: "clamp(1.9rem,3.8vw,2.8rem)", marginTop: 14, marginBottom: 24 }}>Portals to different worlds.</h1>
+            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 16 }}>resembles.nothing makes one-of-one and small-edition wall art — tapestries, canvas prints, and split canvas — designed to feel like nothing else already on your wall. Every piece is prepaid, made to order by our small team, and shipped pan-India.</p>
+            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85 }}>We're a two-person studio — Neha Totla and Laksh Keswani — and we put our own names and Instagram on this brand because we want you to know there are real people accountable for what shows up at your door. No middlemen, no dropshipping.</p>
+          </div>
+        </section>
+      )}
+
+      {page === "shipping" && (
+        <section style={{ padding: "70px 24px 90px" }}>
+          <div style={{ maxWidth: 680, margin: "0 auto" }}>
+            <Eyebrow>Shipping</Eyebrow>
+            <h1 style={{ fontSize: "clamp(1.9rem,3.8vw,2.8rem)", marginTop: 14, marginBottom: 24 }}>How your piece gets to you.</h1>
+            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 16 }}>Most tapestries ship within 3–5 working days and canvases within 5–8 working days, since each one is made to order. Pan-India delivery usually takes another 3–6 days depending on your pin code.</p>
+            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85 }}>Right now we only ship pan-India. International shipping is something we're actively working on — follow our Instagram for updates.</p>
+          </div>
+        </section>
+      )}
+
+      {page === "contact" && (
+        <section style={{ padding: "70px 24px 90px" }}>
+          <div style={{ maxWidth: 680, margin: "0 auto" }}>
+            <Eyebrow>Contact</Eyebrow>
+            <h1 style={{ fontSize: "clamp(1.9rem,3.8vw,2.8rem)", marginTop: 14, marginBottom: 24 }}>Talk to a real person.</h1>
+            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 24 }}>No support bots — the founders read and reply to these ourselves.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <a href="https://wa.me/918450955977" target="_blank" rel="noopener" style={{ color: goldHi, fontSize: 14, textDecoration: "none", border: `1px solid ${line}`, padding: "14px 18px" }}>💬 WhatsApp — fastest way to reach us</a>
+              <a href="https://instagram.com/resembles.nothing" target="_blank" rel="noopener" style={{ color: goldHi, fontSize: 14, textDecoration: "none", border: `1px solid ${line}`, padding: "14px 18px" }}>📷 Instagram — @resembles.nothing</a>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {page === "terms" && (
+        <section style={{ padding: "70px 24px 90px" }}>
+          <div style={{ maxWidth: 680, margin: "0 auto" }}>
+            <Eyebrow>Terms</Eyebrow>
+            <h1 style={{ fontSize: "clamp(1.9rem,3.8vw,2.8rem)", marginTop: 14, marginBottom: 24 }}>Terms of Service.</h1>
+            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 16 }}>We're finalizing the complete Terms of Service for resembles.nothing — this page will carry the full version soon. In the meantime, here's what matters most: every order is prepaid and made specifically for you; each design has a fixed edition size, and once it's sold out it won't be reprinted; payments are processed securely by Razorpay.</p>
+            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85 }}>Questions about a specific order or policy? Reach us directly on <span onClick={() => openInfoPage("contact")} style={{ color: goldHi, cursor: "pointer", textDecoration: "underline" }}>WhatsApp or Instagram</span> — happy to help.</p>
+          </div>
+        </section>
+      )}
+
+      {page === "privacy" && (
+        <section style={{ padding: "70px 24px 90px" }}>
+          <div style={{ maxWidth: 680, margin: "0 auto" }}>
+            <Eyebrow>Privacy</Eyebrow>
+            <h1 style={{ fontSize: "clamp(1.9rem,3.8vw,2.8rem)", marginTop: 14, marginBottom: 24 }}>Privacy Policy.</h1>
+            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 16 }}>We're finalizing our complete Privacy Policy — this page will carry the full version soon. In short: we only collect what's needed to process your order and keep you updated (like your WhatsApp number for delivery updates and your email if you join our newsletter), we never sell your data, and payments are handled securely by Razorpay — we never see or store your card details.</p>
+            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85 }}>Want your data removed, or have a question? Reach us on <span onClick={() => openInfoPage("contact")} style={{ color: goldHi, cursor: "pointer", textDecoration: "underline" }}>WhatsApp or Instagram</span>.</p>
           </div>
         </section>
       )}
@@ -2426,13 +2557,44 @@ export default function App() {
         </section>
       )}
 
-      {/* FOOTER */}
-      <footer style={{ padding: "50px 24px 30px" }}>
-        <div style={{ maxWidth: 1180, margin: "0 auto", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 24, alignItems: "center" }}>
-          <Logo size={30} />
-          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-            <button onClick={() => { setPage("admin"); window.scrollTo(0, 0); }} style={{ background: "none", border: "none", color: stone, fontSize: 11, cursor: "pointer", textDecoration: "underline" }}>Admin Dashboard</button>
-            <div style={{ fontSize: 12, color: stone }}>© 2026 resembles.nothing — Made once. Never repeated.</div>
+      {/* FOOTER — only Instagram + WhatsApp are real social links we run;
+          the mockup's Pinterest/YouTube/Spotify icons were left out rather
+          than pointing at profiles that don't exist. */}
+      <footer style={{ padding: "60px 24px 30px", borderTop: `1px solid ${line}` }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr 1fr", gap: 32, alignItems: "center", marginBottom: 40 }} className="footer-grid">
+            <img src="/footer-moon.jpg" alt="" className="footer-moon" style={{ width: "100%", maxWidth: 160, borderRadius: 6, objectFit: "cover", aspectRatio: "3/4", justifySelf: "start" }} />
+
+            <div style={{ textAlign: "center" }}>
+              <div onClick={backToShop} style={{ cursor: "pointer", fontFamily: "'Cormorant Garamond', serif", fontSize: 26, color: cream }}>
+                resembles<em style={{ color: gold, fontStyle: "normal" }}>.nothing</em>
+              </div>
+              <div style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: stone, marginTop: 5, marginBottom: 22 }}>Portals to different worlds</div>
+
+              <div style={{ display: "flex", justifyContent: "center", gap: 18, flexWrap: "wrap", fontSize: 12.5, color: stone, marginBottom: 22 }}>
+                <span onClick={() => openInfoPage("about")} style={{ cursor: "pointer" }}>About</span>
+                <span onClick={() => openInfoPage("shipping")} style={{ cursor: "pointer" }}>Shipping</span>
+                <a href="#faq" onClick={backToShop} style={{ color: stone, textDecoration: "none" }}>FAQ</a>
+                <span onClick={() => openInfoPage("contact")} style={{ cursor: "pointer" }}>Contact</span>
+                <span onClick={() => openInfoPage("terms")} style={{ cursor: "pointer" }}>Terms</span>
+                <span onClick={() => openInfoPage("privacy")} style={{ cursor: "pointer" }}>Privacy</span>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
+                <a href="https://instagram.com/resembles.nothing" target="_blank" rel="noopener" title="Instagram" style={{ width: 36, height: 36, borderRadius: "50%", border: `1px solid ${gold}`, display: "flex", alignItems: "center", justifyContent: "center", color: goldHi, textDecoration: "none", fontSize: 15 }}>📷</a>
+                <a href="https://wa.me/918450955977" target="_blank" rel="noopener" title="WhatsApp" style={{ width: 36, height: 36, borderRadius: "50%", border: `1px solid ${gold}`, display: "flex", alignItems: "center", justifyContent: "center", color: goldHi, textDecoration: "none", fontSize: 15 }}>💬</a>
+              </div>
+            </div>
+
+            <div className="footer-caveat" style={{ fontFamily: "'Caveat', cursive", fontSize: 22, fontWeight: 600, color: goldHi, textAlign: "right", lineHeight: 1.3, transform: "rotate(-2deg)", justifySelf: "end" }}>
+              Art for a<br />less boring<br />world.
+            </div>
+          </div>
+
+          <div style={{ borderTop: `1px solid ${line}`, paddingTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+            <div style={{ fontSize: 11.5, color: stone }}>© 2026 resembles.nothing — Never repeated.</div>
+            <button onClick={() => { setPage("admin"); window.scrollTo(0, 0); }} style={{ background: "none", border: "none", color: stone, fontSize: 10.5, cursor: "pointer", textDecoration: "underline" }}>Admin Dashboard</button>
+            <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: stone }}>Made in a more imaginative India</div>
           </div>
         </div>
       </footer>
