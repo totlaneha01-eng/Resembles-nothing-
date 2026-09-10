@@ -21,6 +21,7 @@ app.use(express.static(path.join(__dirname, "..", "public")));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/products", require("./routes/products"));
 app.use("/api/cart", require("./routes/cart"));
+app.use("/api/saved", require("./routes/saved"));
 app.use("/api/orders", require("./routes/orders"));
 app.use("/api/artists", require("./routes/artists"));
 app.use("/api/payouts", require("./routes/payouts"));
