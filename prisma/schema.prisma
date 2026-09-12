@@ -215,6 +215,15 @@ model Order {
   shippingAddress   Json
   createdAt         DateTime    @default(now())
 
+  // Set by an admin from the Admin Dashboard once they've matched the
+  // buyer's UPI payment screenshot to this order — see the "Confirm
+  // Payment" flow in routes/orders.js. Only meaningful for orders placed
+  // through the manual-UPI checkout (paymentMethod: "UPI_MANUAL");
+  // Razorpay orders are considered paid once /verify succeeds instead.
+  paymentMethod      String    @default("RAZORPAY") // "RAZORPAY" | "UPI_MANUAL"
+  paymentConfirmed   Boolean   @default(false)
+  paymentConfirmedAt DateTime?
+
   statusEvents OrderStatusEvent[]
 }
 

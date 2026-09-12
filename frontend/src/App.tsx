@@ -954,6 +954,90 @@ function DesignRequestsPanel({ gold, goldHi, cream, stone, line, ink2 }) {
   );
 }
 
+// Real, DB-connected — same as AddProductsPanel/DesignRequestsPanel above.
+// Unconfirmed manual-UPI orders float to the top since those are the ones
+// actually waiting on a human (matching a payment screenshot to an order).
+function OrdersPanel({ gold, goldHi, cream, stone, line, ink2 }) {
+  const [orders, setOrders] = useState(null); // null = loading
+  const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState(null);
+
+  function refetch() {
+    apiFetch("/orders/admin/all")
+      .then((data) => {
+        const sorted = [...(data.orders || [])].sort((a, b) => (a.paymentConfirmed === b.paymentConfirmed ? 0 : a.paymentConfirmed ? 1 : -1));
+        setOrders(sorted);
+      })
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load orders."));
+  }
+  useEffect(() => { refetch(); }, []);
+
+  async function confirmPayment(id) {
+    setBusyId(id);
+    try {
+      await apiFetch(`/orders/${id}/confirm-payment`, { method: "POST" });
+      refetch();
+    } catch {
+      // best-effort — refetch() on next panel view will pick up the real state
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function downloadInvoice(id) {
+    const res = await fetch(`/api/orders/${id}/invoice`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `invoice-${id.slice(0, 8)}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div style={{ border: `1px solid ${line}`, padding: 24, marginBottom: 44 }}>
+      <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Orders</div>
+      {error && <p style={{ color: "#c9524b", fontSize: 12.5 }}>{error}</p>}
+      {orders === null && !error && <p style={{ color: stone, fontSize: 12.5 }}>Loading…</p>}
+      {orders && orders.length === 0 && <p style={{ color: stone, fontSize: 12.5 }}>No orders yet.</p>}
+      {orders && orders.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {orders.map((o) => (
+            <div key={o.id} style={{ background: ink2, border: `1px solid ${o.paymentConfirmed ? line : gold}`, padding: "14px 16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 13, color: cream }}>{o.user?.name || "—"} <span style={{ color: stone, fontSize: 11 }}>· {o.user?.email}</span></div>
+                <div style={{ fontSize: 10.5, color: stone }}>{new Date(o.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</div>
+              </div>
+              <div style={{ fontSize: 12.5, color: stone, marginBottom: 10, lineHeight: 1.7 }}>
+                {o.items.map((it) => `${it.product?.name || "Design"} (${it.format} · ${it.sizeLabel})`).join(", ")}
+                {" — "}<span style={{ color: cream }}>{currency(o.totalAmount)}</span>
+                {" · "}{o.paymentMethod === "UPI_MANUAL" ? "UPI (manual)" : "Razorpay"}
+              </div>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{
+                  fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", padding: "5px 10px",
+                  border: `1px solid ${o.paymentConfirmed ? "#6ba36b" : gold}`, color: o.paymentConfirmed ? "#6ba36b" : goldHi,
+                }}>{o.paymentConfirmed ? "Payment confirmed" : "Awaiting confirmation"}</span>
+                {!o.paymentConfirmed && (
+                  <button onClick={() => confirmPayment(o.id)} disabled={busyId === o.id} style={{
+                    background: "none", cursor: "pointer", fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase",
+                    padding: "5px 10px", border: `1px solid ${gold}`, color: goldHi,
+                  }}>{busyId === o.id ? "…" : "Confirm Payment"}</button>
+                )}
+                <span onClick={() => downloadInvoice(o.id)} style={{ fontSize: 10.5, color: goldHi, cursor: "pointer", textDecoration: "underline" }}>Invoice ↓</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [page, setPage] = useState("shop"); // "shop" | "product" | "artist" | "admin" | "explore" | "worlds" | "saved" | "about" | "shipping" | "contact" | "terms" | "privacy"
   const [viewArtist, setViewArtist] = useState(null);
@@ -1055,6 +1139,27 @@ export default function App() {
       .catch(() => {});
   }
 
+  // Real order history — replaces whatever was in local state (which only
+  // ever held orders placed this session) once we know what's actually on
+  // the server for this account.
+  function refetchOrders() {
+    if (!getToken()) return;
+    apiFetch("/orders")
+      .then((data) => {
+        setOrders(
+          (data.orders || []).map((o) => ({
+            id: o.id,
+            realOrderId: o.id,
+            items: o.items,
+            total: o.totalAmount,
+            date: o.createdAt,
+            status: o.paymentConfirmed ? ORDER_STEPS[0] : "Awaiting payment confirmation",
+          }))
+        );
+      })
+      .catch(() => {});
+  }
+
   // Optimistic toggle — flips the heart instantly, then reconciles with the
   // server; on failure it reverts so the UI never lies about saved state.
   // Keyed by dbId (the real Product row id), not id (which is the slug for
@@ -1094,6 +1199,7 @@ export default function App() {
         .then((data) => setUser(data.user))
         .catch(() => clearToken());
       refetchSaved();
+      refetchOrders();
     }
   }, []);
 
@@ -1200,6 +1306,7 @@ export default function App() {
       setShowLogin(false);
       showToast(`Signed in as ${data.user.name}`);
       refetchSaved();
+      refetchOrders();
     } catch (err) {
       setAuthError(err instanceof ApiError ? err.message : "Something went wrong — try again.");
     } finally {
@@ -1348,7 +1455,7 @@ export default function App() {
   // payment and confirm by hand. Nothing here can auto-verify a UPI
   // payment, so the "order placed" state below means "sent to us for
   // confirmation," not "payment verified."
-  function placeOrder(e) {
+  async function placeOrder(e) {
     e.preventDefault();
     const form = new FormData(e.target);
     const name = form.get("name") || user?.name || "";
@@ -1363,9 +1470,54 @@ export default function App() {
       `Paid via UPI QR — screenshot of the payment is attached in this chat.`;
     window.open(`https://wa.me/918450955977?text=${encodeURIComponent(message)}`, "_blank");
 
+    // Best-effort: gives this order a real, persisted row (invoice, order
+    // history, admin "Confirm Payment" visibility) instead of living only
+    // in this browser tab. Needs login (guest checkout still works via the
+    // WhatsApp message above, it just won't show up in Order History or
+    // have a downloadable invoice) and at least one real, DB-backed item —
+    // the hardcoded CATALOG fallback designs have no row to attach an order
+    // to, same limitation as the Saved/wishlist heart.
+    let realOrderId = null;
+    const dbItems = cart.filter((i) => i.dbId);
+    if (getToken() && dbItems.length > 0) {
+      try {
+        const data = await apiFetch("/orders/manual", {
+          method: "POST",
+          body: JSON.stringify({
+            items: dbItems.map((i) => ({ productId: i.dbId, format: i.format, sizeLabel: i.sizeLabel, sizeDims: i.sizeDims, priceINR: i.price, priceUSD: i.priceUSD, qty: i.qty })),
+            shippingAddress: { name, address, pin },
+          }),
+        });
+        realOrderId = data.orderId;
+      } catch {
+        // Non-fatal — the WhatsApp message is the real fallback record.
+      }
+    }
+
     setOrderPlaced(true);
-    setOrders((o) => [{ id: Date.now(), items: cart, total: cartTotal, date: new Date().toISOString(), status: ORDER_STEPS[0] }, ...o]);
+    setOrders((o) => [{ id: realOrderId || Date.now(), realOrderId, items: cart, total: cartTotal, date: new Date().toISOString(), status: ORDER_STEPS[0] }, ...o]);
     setNotifs((n) => [{ id: Date.now(), title: "Order sent for confirmation", body: `${cartCount} piece${cartCount > 1 ? "s" : ""} — we'll confirm your payment on WhatsApp and start production.`, time: "just now", read: false }, ...n]);
+  }
+
+  // apiFetch assumes a JSON body, which won't work for a binary PDF — and a
+  // plain <a href> can't carry the Authorization header a GET like this
+  // needs. Fetch it as a blob instead and hand the browser a real download.
+  async function downloadInvoice(orderId) {
+    try {
+      const res = await fetch(`/api/orders/${orderId}/invoice`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `invoice-${orderId.slice(0, 8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      showToast("Couldn't download the invoice — try again in a bit");
+    }
   }
 
   function closeCheckout() {
@@ -2607,6 +2759,8 @@ export default function App() {
               categoryOptions={categoryOptions} onAdded={refetchProducts}
             />
 
+            <OrdersPanel gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink2={ink2} />
+
             <DesignRequestsPanel gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink2={ink2} />
 
             {/* Stat cards */}
@@ -3007,7 +3161,12 @@ export default function App() {
                       <span>{o.items.length} piece{o.items.length > 1 ? "s" : ""}</span>
                       <span>{currency(o.total)}</span>
                     </div>
-                    <div style={{ fontSize: 11, color: stone }}>{new Date(o.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · {o.status}</div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ fontSize: 11, color: o.status === "Awaiting payment confirmation" ? goldHi : stone }}>{new Date(o.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · {o.status}</div>
+                      {o.realOrderId && (
+                        <span onClick={() => downloadInvoice(o.realOrderId)} style={{ fontSize: 10.5, color: goldHi, cursor: "pointer", textDecoration: "underline", whiteSpace: "nowrap", marginLeft: 10 }}>Invoice ↓</span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
