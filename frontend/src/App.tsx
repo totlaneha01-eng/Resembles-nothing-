@@ -1835,6 +1835,19 @@ export default function App() {
     window.scrollTo(0, 0);
     navigate("/");
   }
+  // Switches to the shop page (if not already there) and scrolls to one of
+  // its in-page sections (#shop, #faq, #visualizer) once it's actually
+  // rendered — setPage() doesn't take effect until the next render, so a
+  // plain document.getElementById(id) called in the same tick as backToShop()
+  // would still find nothing if the caller wasn't already on "shop". This is
+  // what a bunch of nav links assumed instead of calling this for a while —
+  // caught it from the mobile-nav category pills specifically: tapping one
+  // while on a product page (or any page other than shop) silently did
+  // nothing, because #shop didn't exist in the DOM yet to scroll to.
+  function goToShopSection(id) {
+    backToShop();
+    requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }));
+  }
   function openArtist(name) {
     setViewArtist(name);
     setPage("artist");
@@ -2109,8 +2122,8 @@ export default function App() {
           </div>
           <nav style={{ display: "flex", gap: 28, fontSize: 13 }} className="navlinks">
             <a href="#shop" onClick={backToShop} style={{ color: stone, textDecoration: "none" }}>Shop</a>
-            <a href="#visualizer" style={{ color: stone, textDecoration: "none" }}>Preview Your Wall</a>
-            <a href="#faq" style={{ color: stone, textDecoration: "none" }}>FAQs</a>
+            <a href="#visualizer" onClick={(e) => { e.preventDefault(); goToShopSection("visualizer"); }} style={{ color: stone, textDecoration: "none" }}>Preview Your Wall</a>
+            <a href="#faq" onClick={(e) => { e.preventDefault(); goToShopSection("faq"); }} style={{ color: stone, textDecoration: "none" }}>FAQs</a>
             <a href="#" onClick={(e) => { e.preventDefault(); if (user) setShowProfile(true); else setShowLogin(true); }} style={{ color: stone, textDecoration: "none" }}>Sell Your Art</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setShowQuiz(true); }} style={{ color: stone, textDecoration: "none" }}>Find Your Art Persona</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setDesignRequestSent(false); setDesignRequestStep("brief"); setShowDesignRequest(true); }} style={{ color: stone, textDecoration: "none" }}>Request a Design</a>
@@ -2179,7 +2192,7 @@ export default function App() {
                     onClick={() => {
                       setCategory(c);
                       setShowMobileNav(false);
-                      document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" });
+                      goToShopSection("shop");
                     }}
                     style={{ padding: "7px 13px", border: `1px solid ${c === category ? gold : line}`, color: c === category ? goldHi : stone, fontSize: 12.5, cursor: "pointer" }}
                   >{c}</div>
@@ -2188,8 +2201,8 @@ export default function App() {
             </div>
 
             <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); openWorlds(); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Worlds</a>
-            <a href="#visualizer" onClick={() => setShowMobileNav(false)} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Preview Your Wall</a>
-            <a href="#faq" onClick={() => setShowMobileNav(false)} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>FAQs</a>
+            <a href="#visualizer" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); goToShopSection("visualizer"); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Preview Your Wall</a>
+            <a href="#faq" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); goToShopSection("faq"); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>FAQs</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); if (user) setShowProfile(true); else setShowLogin(true); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Sell Your Art</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); setShowQuiz(true); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Find Your Art Persona</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); setDesignRequestSent(false); setDesignRequestStep("brief"); setShowDesignRequest(true); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Request a Design</a>
@@ -3647,7 +3660,7 @@ export default function App() {
               <div style={{ fontSize: 12.5, color: goldHi, marginTop: 6, marginBottom: 18, fontStyle: "italic" }}>{quizResult.tag}</div>
               <p style={{ fontSize: 13.5, color: stone, lineHeight: 1.75, marginBottom: 26 }}>{quizResult.blurb}</p>
               <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-                <Btn onClick={() => { setCategory(quizResult.category); closeQuiz(); document.getElementById("shop").scrollIntoView({ behavior: "smooth" }); }}>See My Matches</Btn>
+                <Btn onClick={() => { setCategory(quizResult.category); closeQuiz(); goToShopSection("shop"); }}>See My Matches</Btn>
                 <Btn variant="ghost" onClick={resetQuiz}>Retake Quiz</Btn>
               </div>
               {user && <p style={{ fontSize: 10.5, color: stone, marginTop: 18 }}>Saved to your profile.</p>}
