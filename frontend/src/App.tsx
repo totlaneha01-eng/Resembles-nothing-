@@ -311,7 +311,12 @@ const CATEGORY_COVER_IMG = {
   "Human Emotions": "/faces-emotion.jpg",
   Abstract: "/abstract-splatter.jpg",
   Celestial: "/split-moon-cosmic.jpg",
-  Places: "/ruins-column.jpg",
+  Places: "/amalfi-coast.jpg",
+  "Vintage & Retro": "/ruins-column.jpg", // reassigned here from Places — reads more "yesterday, reimagined" than "a place you'd go"
+  "Pop Culture": "/pop-culture-collage.jpg",
+  Spirituality: "/buddha-cosmos.jpg",
+  Animals: "/tiger-jungle.jpg",
+  People: "/woman-portrait.jpg",
 };
 
 // One line of flavour text per theme, shown on the catalogue's category cards.
