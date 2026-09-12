@@ -131,8 +131,21 @@ router.post("/verify", requireAuth, async (req, res) => {
 // since nothing here has verified money changed hands.
 router.post("/manual", requireAuth, async (req, res) => {
   try {
-    const { items, shippingAddress } = req.body;
+    const { items, shippingAddress, paymentScreenshot } = req.body;
     if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: "No items to order" });
+
+    // Optional — checkout still works without it (WhatsApp is the fallback).
+    // A phone screenshot rarely exceeds a couple MB; 7M chars of base64
+    // (~5MB raw) is a generous cap that just stops something huge from
+    // landing in a TEXT column.
+    if (paymentScreenshot !== undefined && paymentScreenshot !== null && paymentScreenshot !== "") {
+      if (typeof paymentScreenshot !== "string" || !paymentScreenshot.startsWith("data:image/")) {
+        return res.status(400).json({ error: "That doesn't look like a valid image" });
+      }
+      if (paymentScreenshot.length > 7_000_000) {
+        return res.status(400).json({ error: "That screenshot's too large — try a smaller one" });
+      }
+    }
 
     const productIds = items.map((i) => i.productId);
     const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
@@ -152,6 +165,7 @@ router.post("/manual", requireAuth, async (req, res) => {
         shippingAddress,
         status: "PLACED",
         paymentMethod: "UPI_MANUAL",
+        paymentScreenshot: paymentScreenshot || null,
         items: {
           create: items.map((i) => {
             const product = byId[i.productId];

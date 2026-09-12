@@ -11,7 +11,11 @@ const app = express();
 // builds it from req.protocol). Harmless for everything else already here.
 app.set("trust proxy", 1);
 app.use(cors());
-app.use(express.json());
+// Default body limit is 100kb — too small for the base64 payment
+// screenshots orders/manual and design-requests accept (see those routes'
+// own ~7M-char cap on the field itself; this just has to be big enough to
+// not reject the request before it gets there).
+app.use(express.json({ limit: "8mb" }));
 
 // Registered before express.static so it wins over any sitemap.xml that
 // might otherwise sit as a static file in public/ — generated fresh from

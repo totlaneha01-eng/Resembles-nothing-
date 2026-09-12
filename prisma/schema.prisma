@@ -203,6 +203,7 @@ model DesignRequest {
   paymentMethod      String    @default("UPI_MANUAL")
   paymentConfirmed   Boolean   @default(false)
   paymentConfirmedAt DateTime?
+  paymentScreenshot  String?   @db.Text // same as Order.paymentScreenshot — see that field's comment
 
   iterationImages String[] @default([]) // URLs an admin pastes in once the first round of directions is ready
   iterationNote   String?  @db.Text // a short message to go with them, e.g. "here are 5 directions — reply with your favourite"
@@ -241,6 +242,14 @@ model Order {
   paymentMethod      String    @default("RAZORPAY") // "RAZORPAY" | "UPI_MANUAL"
   paymentConfirmed   Boolean   @default(false)
   paymentConfirmedAt DateTime?
+
+  // The buyer's UPI payment screenshot, uploaded straight from checkout —
+  // a base64 data URI, stored here (not on disk: Render's filesystem isn't
+  // persistent across deploys) so it survives as long as the order does and
+  // an admin can review it right next to "Confirm Payment" instead of
+  // having to go dig through WhatsApp. Temporary, same as the whole
+  // manual-UPI flow — goes away once Razorpay verification replaces it.
+  paymentScreenshot String? @db.Text
 
   statusEvents OrderStatusEvent[]
 }

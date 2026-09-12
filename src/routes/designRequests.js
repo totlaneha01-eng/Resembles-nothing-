@@ -18,8 +18,21 @@ router.post("/", optionalAuth, async (req, res) => {
     return res.status(400).json({ error: "Add your name and a way to reach you (email, phone, or WhatsApp)" });
   }
 
+  // Optional — same rules as orders/manual's paymentScreenshot (see that
+  // route's comment for why: WhatsApp is still the fallback, and the cap is
+  // just to keep something huge out of a TEXT column).
+  const { paymentScreenshot } = req.body;
+  if (paymentScreenshot !== undefined && paymentScreenshot !== null && paymentScreenshot !== "") {
+    if (typeof paymentScreenshot !== "string" || !paymentScreenshot.startsWith("data:image/")) {
+      return res.status(400).json({ error: "That doesn't look like a valid image" });
+    }
+    if (paymentScreenshot.length > 7_000_000) {
+      return res.status(400).json({ error: "That screenshot's too large — try a smaller one" });
+    }
+  }
+
   const request = await prisma.designRequest.create({
-    data: { userId: req.user?.id || null, name, contact, message },
+    data: { userId: req.user?.id || null, name, contact, message, paymentScreenshot: paymentScreenshot || null },
   });
   res.json({ request });
 });

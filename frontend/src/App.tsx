@@ -1046,6 +1046,13 @@ function DesignRequestsPanel({ gold, goldHi, cream, stone, line, ink2 }) {
               <p style={{ fontSize: 13, color: cream, lineHeight: 1.6, marginBottom: 10 }}>{r.message}</p>
 
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+                {r.paymentScreenshot && (
+                  <img
+                    src={r.paymentScreenshot} alt="Payment screenshot" title="Click to view full size"
+                    onClick={() => window.open(r.paymentScreenshot, "_blank")}
+                    style={{ width: 34, height: 34, objectFit: "cover", border: `1px solid ${line}`, cursor: "pointer" }}
+                  />
+                )}
                 <span style={{
                   fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", padding: "4px 9px",
                   border: `1px solid ${r.paymentConfirmed ? "#6ba36b" : goldHi}`, color: r.paymentConfirmed ? "#6ba36b" : goldHi,
@@ -1159,6 +1166,13 @@ function OrdersPanel({ gold, goldHi, cream, stone, line, ink2 }) {
                 {" · "}{o.paymentMethod === "UPI_MANUAL" ? "UPI (manual)" : "Razorpay"}
               </div>
               <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                {o.paymentScreenshot && (
+                  <img
+                    src={o.paymentScreenshot} alt="Payment screenshot" title="Click to view full size"
+                    onClick={() => window.open(o.paymentScreenshot, "_blank")}
+                    style={{ width: 34, height: 34, objectFit: "cover", border: `1px solid ${line}`, cursor: "pointer" }}
+                  />
+                )}
                 <span style={{
                   fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", padding: "5px 10px",
                   border: `1px solid ${o.paymentConfirmed ? "#6ba36b" : gold}`, color: o.paymentConfirmed ? "#6ba36b" : goldHi,
@@ -1229,6 +1243,8 @@ export default function App() {
   const [designRequestContact, setDesignRequestContact] = useState("");
   const [designRequestBusy, setDesignRequestBusy] = useState(false);
   const [designRequestSent, setDesignRequestSent] = useState(false);
+  const [designRequestScreenshot, setDesignRequestScreenshot] = useState(null); // base64 data URI, or null — optional, same as checkout's paymentScreenshot
+  const [designRequestScreenshotBusy, setDesignRequestScreenshotBusy] = useState(false);
   const DESIGN_REQUEST_FEE_INR = 499;
   const DESIGN_REQUEST_FEE_USD = 4.99;
   const designRequestFeeLabel = currencyMode === "USD" ? "$" + DESIGN_REQUEST_FEE_USD.toFixed(2) : currency(DESIGN_REQUEST_FEE_INR);
@@ -1236,6 +1252,7 @@ export default function App() {
   function closeDesignRequest() {
     setShowDesignRequest(false);
     setDesignRequestStep("brief");
+    setDesignRequestScreenshot(null);
   }
 
   // Step 1: just moves the brief on to the payment screen — nothing's sent
@@ -1254,7 +1271,7 @@ export default function App() {
     try {
       await apiFetch("/design-requests", {
         method: "POST",
-        body: JSON.stringify({ message: designRequestMsg, name: designRequestName, contact: designRequestContact }),
+        body: JSON.stringify({ message: designRequestMsg, name: designRequestName, contact: designRequestContact, paymentScreenshot: designRequestScreenshot }),
       });
       const waMessage =
         `Custom design request from resembles.nothing\n\n` +
@@ -1267,6 +1284,7 @@ export default function App() {
       setDesignRequestName("");
       setDesignRequestContact("");
       setDesignRequestStep("brief");
+      setDesignRequestScreenshot(null);
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : "Something went wrong — try again.");
     } finally {
@@ -1409,6 +1427,8 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [openFaq, setOpenFaq] = useState(null);
   const [orderPlaced, setOrderPlaced] = useState(false);
+  const [paymentScreenshot, setPaymentScreenshot] = useState(null); // base64 data URI, or null — optional, WhatsApp is still the fallback
+  const [screenshotBusy, setScreenshotBusy] = useState(false);
   const [social, setSocial] = useState({ instagram: true, whatsapp: false, youtube: false });
   // Which design the wall visualizer should start with — bumped only when the
   // user explicitly clicks "Preview on My Wall" from a specific product page.
@@ -1616,6 +1636,28 @@ export default function App() {
     }
   }
 
+  // Reads a picked file into a base64 data URI and hands it to whichever
+  // setter called it — shared by the checkout screenshot upload and the
+  // design-request one below. Keeps the same ~5MB raw cap the backend
+  // enforces (see orders.js/designRequests.js) so a bad file is rejected
+  // here instead of after a slow upload only to bounce off the server.
+  function handleScreenshotFile(file, setter, setBusy) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showToast("That doesn't look like an image");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("That screenshot's too large — try a smaller one");
+      return;
+    }
+    setBusy(true);
+    const reader = new FileReader();
+    reader.onload = () => { setter(reader.result); setBusy(false); };
+    reader.onerror = () => { showToast("Couldn't read that file — try again"); setBusy(false); };
+    reader.readAsDataURL(file);
+  }
+
   // Temporary manual-UPI checkout, until Razorpay's account keys are
   // connected — the buyer pays the QR directly, then this hands them
   // straight to WhatsApp with their order pre-filled so we can match the
@@ -1653,6 +1695,7 @@ export default function App() {
           body: JSON.stringify({
             items: dbItems.map((i) => ({ productId: i.dbId, format: i.format, sizeLabel: i.sizeLabel, sizeDims: i.sizeDims, priceINR: i.price, priceUSD: i.priceUSD, qty: i.qty })),
             shippingAddress: { name, address, pin },
+            paymentScreenshot,
           }),
         });
         realOrderId = data.orderId;
@@ -1664,6 +1707,7 @@ export default function App() {
     setOrderPlaced(true);
     setOrders((o) => [{ id: realOrderId || Date.now(), realOrderId, items: cart, total: cartTotal, date: new Date().toISOString(), status: ORDER_STEPS[0] }, ...o]);
     setNotifs((n) => [{ id: Date.now(), title: "Order sent for confirmation", body: `${cartCount} piece${cartCount > 1 ? "s" : ""} — we'll confirm your payment on WhatsApp and start production.`, time: "just now", read: false }, ...n]);
+    setPaymentScreenshot(null);
   }
 
   // apiFetch assumes a JSON body, which won't work for a binary PDF — and a
@@ -3454,8 +3498,28 @@ export default function App() {
                 <div style={{ fontSize: 11.5, color: stone }}>with any UPI app — GPay, PhonePe, Paytm, etc.</div>
                 <div style={{ fontSize: 10.5, color: stone, marginTop: 8, wordBreak: "break-all" }}>UPI ID: keswaniveidehi-1@okicici</div>
               </div>
+
+              <label style={{ display: "block", marginBottom: 16 }}>
+                <span style={{ display: "block", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: stone, marginBottom: 7 }}>Payment screenshot (optional)</span>
+                {designRequestScreenshot ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, border: `1px solid ${line}`, padding: 10 }}>
+                    <img src={designRequestScreenshot} alt="Payment screenshot" style={{ width: 46, height: 46, objectFit: "cover", flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: stone, flex: 1 }}>Attached — we'll see this with your request.</span>
+                    <button type="button" onClick={() => setDesignRequestScreenshot(null)} style={{ background: "none", border: "none", color: stone, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
+                  </div>
+                ) : (
+                  <div style={{ border: `1px dashed ${line}`, padding: "12px 14px", textAlign: "center", cursor: "pointer", color: stone, fontSize: 12.5 }}>
+                    {designRequestScreenshotBusy ? "Reading…" : "Tap to attach a screenshot"}
+                    <input
+                      type="file" accept="image/*" style={{ display: "none" }}
+                      onChange={(e) => handleScreenshotFile(e.target.files?.[0], setDesignRequestScreenshot, setDesignRequestScreenshotBusy)}
+                    />
+                  </div>
+                )}
+              </label>
+
               <p style={{ fontSize: 11, color: stone, lineHeight: 1.7, marginBottom: 16 }}>
-                After paying, tap below — it opens WhatsApp with your brief filled in. Attach a screenshot of the payment there so we can confirm it and start on your directions.
+                After paying, tap below — it opens WhatsApp with your brief filled in too, just in case. Attaching it above means we can confirm it without waiting on WhatsApp.
               </p>
               <Btn full onClick={confirmDesignRequestPaid} disabled={designRequestBusy} style={{ marginTop: 4 }}>
                 {designRequestBusy ? "…" : "I've Paid — Send Brief on WhatsApp"}
@@ -3723,8 +3787,28 @@ export default function App() {
                   <div style={{ fontSize: 11.5, color: stone }}>with any UPI app — GPay, PhonePe, Paytm, etc.</div>
                   <div style={{ fontSize: 10.5, color: stone, marginTop: 8, wordBreak: "break-all" }}>UPI ID: keswaniveidehi-1@okicici</div>
                 </div>
+
+                <label style={{ display: "block", marginBottom: 16 }}>
+                  <span style={{ display: "block", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: stone, marginBottom: 7 }}>Payment screenshot (optional)</span>
+                  {paymentScreenshot ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, border: `1px solid ${line}`, padding: 10 }}>
+                      <img src={paymentScreenshot} alt="Payment screenshot" style={{ width: 46, height: 46, objectFit: "cover", flexShrink: 0 }} />
+                      <span style={{ fontSize: 12, color: stone, flex: 1 }}>Attached — we'll see this in your order.</span>
+                      <button type="button" onClick={() => setPaymentScreenshot(null)} style={{ background: "none", border: "none", color: stone, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
+                    </div>
+                  ) : (
+                    <div style={{ border: `1px dashed ${line}`, padding: "12px 14px", textAlign: "center", cursor: "pointer", color: stone, fontSize: 12.5 }}>
+                      {screenshotBusy ? "Reading…" : "Tap to attach a screenshot"}
+                      <input
+                        type="file" accept="image/*" style={{ display: "none" }}
+                        onChange={(e) => handleScreenshotFile(e.target.files?.[0], setPaymentScreenshot, setScreenshotBusy)}
+                      />
+                    </div>
+                  )}
+                </label>
+
                 <p style={{ fontSize: 11, color: stone, lineHeight: 1.7, marginBottom: 16 }}>
-                  After paying, tap below — it opens WhatsApp with your order filled in. Attach a screenshot of the payment there so we can confirm it and start production.
+                  After paying, tap below — it opens WhatsApp with your order filled in too, just in case. Attaching it above means we can confirm it without waiting on WhatsApp.
                 </p>
                 <Btn full type="submit" style={{ marginTop: 4 }}>
                   I've Paid — Send Order on WhatsApp
