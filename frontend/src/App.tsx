@@ -150,6 +150,70 @@ const REVIEWS: { name: string; rating: number; text: string }[] = [];
 
 const ORDER_STEPS = ["Order placed", "Being made", "Packed", "Shipped", "Out for delivery", "Delivered"];
 
+// Real URLs for the pages that don't need any data lookup — the ones that
+// do (a design, an artist) get their path built from p.id / the artist's
+// name instead (see openProduct/openArtist). Giving every page its own
+// path is what lets Google index more than just "/", and lets a shared
+// link land someone on the actual page instead of the homepage — see
+// resolvePath() and the navigate() calls in App() for the other half of
+// this (the server side of it is the catch-all in src/index.js).
+const PAGE_PATH = {
+  shop: "/",
+  explore: "/explore",
+  worlds: "/worlds",
+  saved: "/saved",
+  about: "/about",
+  shipping: "/shipping",
+  contact: "/contact",
+  terms: "/terms",
+  privacy: "/privacy",
+};
+function slugify(s) {
+  return String(s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+// Per-page <title>/description — used by the effect that keeps document.title,
+// the meta description, and the canonical link in sync with `page`. Kept out
+// of PAGE_PATH itself since "product"/"artist" build theirs from live data
+// instead of a fixed string (see the effect).
+const PAGE_SEO = {
+  shop: {
+    title: "resembles.nothing — Curated, Limited-Edition Wall Art, Tapestries & Canvas | Ships Worldwide",
+    description: "Hand-picked, limited-edition tapestries, canvas prints and split-canvas art — each design made to order and shipped worldwide. Founder-backed, no dropshipping.",
+  },
+  explore: {
+    title: "Explore — resembles.nothing",
+    description: "Browse every world, mood, and theme in the resembles.nothing collection — from myth and divinity to abstract and surreal.",
+  },
+  worlds: {
+    title: "Worlds — resembles.nothing",
+    description: "Every collection theme at resembles.nothing, from Celestial to Zodiac & Cosmic Signs — a different world for every wall.",
+  },
+  about: {
+    title: "About — resembles.nothing",
+    description: "The story, vision, and manifesto behind resembles.nothing — a two-person studio making one-of-one and small-edition wall art, shipped worldwide.",
+  },
+  shipping: {
+    title: "Shipping & Returns — resembles.nothing",
+    description: "How shipping, delivery timelines, and returns work at resembles.nothing — we ship worldwide.",
+  },
+  contact: {
+    title: "Contact — resembles.nothing",
+    description: "Reach resembles.nothing on WhatsApp or Instagram for order questions, custom design requests, or anything else.",
+  },
+  terms: {
+    title: "Terms of Service — resembles.nothing",
+    description: "The terms that govern orders, payments, and use of resembles.nothing.",
+  },
+  privacy: {
+    title: "Privacy Policy — resembles.nothing",
+    description: "How resembles.nothing collects, uses, and protects your data.",
+  },
+  saved: {
+    title: "Saved — resembles.nothing",
+    description: "Your saved designs at resembles.nothing.",
+  },
+};
+
 const ARTIST_BIOS = {
   "resembles.nothing studio": {
     bio: "The in-house studio behind resembles.nothing — every house design starts here.",
@@ -920,7 +984,29 @@ function DesignRequestsPanel({ gold, goldHi, cream, stone, line, ink2 }) {
     }
   }
 
-  const STATUS_COLOR = { NEW: goldHi, REVIEWED: stone, DONE: "#6ba36b" };
+  async function confirmPayment(id) {
+    try {
+      await apiFetch(`/design-requests/${id}/confirm-payment`, { method: "POST" });
+      refetch();
+    } catch {
+      // best-effort, same as setStatus above
+    }
+  }
+
+  async function saveIterations(id, e) {
+    e.preventDefault();
+    const form = new FormData(e.target);
+    const images = String(form.get("images") || "").split("\n").map((s) => s.trim()).filter(Boolean);
+    const note = String(form.get("note") || "");
+    try {
+      await apiFetch(`/design-requests/${id}`, { method: "PATCH", body: JSON.stringify({ iterationImages: images, iterationNote: note }) });
+      refetch();
+    } catch {
+      // best-effort, same as setStatus above
+    }
+  }
+
+  const STATUS_COLOR = { NEW: goldHi, IN_PROGRESS: stone, ITERATIONS_SENT: gold, DONE: "#6ba36b" };
 
   return (
     <div style={{ border: `1px solid ${line}`, padding: 24, marginBottom: 44 }}>
@@ -937,15 +1023,49 @@ function DesignRequestsPanel({ gold, goldHi, cream, stone, line, ink2 }) {
                 <div style={{ fontSize: 10.5, color: stone }}>{new Date(r.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</div>
               </div>
               <p style={{ fontSize: 13, color: cream, lineHeight: 1.6, marginBottom: 10 }}>{r.message}</p>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                {["NEW", "REVIEWED", "DONE"].map((s) => (
+
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+                <span style={{
+                  fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", padding: "4px 9px",
+                  border: `1px solid ${r.paymentConfirmed ? "#6ba36b" : goldHi}`, color: r.paymentConfirmed ? "#6ba36b" : goldHi,
+                }}>
+                  {r.paymentConfirmed ? "Paid ✓" : `Awaiting ₹${r.feeINR} / $${r.feeUSD}`}
+                </span>
+                {!r.paymentConfirmed && (
+                  <button onClick={() => confirmPayment(r.id)} style={{
+                    background: "none", cursor: "pointer", fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase",
+                    padding: "5px 10px", border: `1px solid ${gold}`, color: gold,
+                  }}>Confirm Payment</button>
+                )}
+              </div>
+
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
+                {["NEW", "IN_PROGRESS", "ITERATIONS_SENT", "DONE"].map((s) => (
                   <button key={s} onClick={() => setStatus(r.id, s)} style={{
                     background: "none", cursor: "pointer", fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase",
                     padding: "5px 10px", border: `1px solid ${r.status === s ? STATUS_COLOR[s] : line}`,
                     color: r.status === s ? STATUS_COLOR[s] : stone,
-                  }}>{s}</button>
+                  }}>{s.replace("_", " ")}</button>
                 ))}
               </div>
+
+              <form onSubmit={(e) => saveIterations(r.id, e)} style={{ borderTop: `1px solid ${line}`, paddingTop: 12 }}>
+                <span style={{ display: "block", fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: stone, marginBottom: 6 }}>
+                  Design directions — one image URL per line
+                </span>
+                <textarea
+                  name="images" defaultValue={(r.iterationImages || []).join("\n")} rows={3} placeholder="https://…"
+                  style={{ width: "100%", background: "#0e0d0c", border: `1px solid ${line}`, color: cream, padding: "8px 10px", fontSize: 12, fontFamily: "inherit", outline: "none", resize: "vertical", boxSizing: "border-box", marginBottom: 8 }}
+                />
+                <input
+                  name="note" defaultValue={r.iterationNote || ""} placeholder="A short note to go with them…"
+                  style={{ width: "100%", background: "#0e0d0c", border: `1px solid ${line}`, color: cream, padding: "8px 10px", fontSize: 12, outline: "none", boxSizing: "border-box", marginBottom: 8 }}
+                />
+                <button type="submit" style={{
+                  background: "none", cursor: "pointer", fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase",
+                  padding: "6px 12px", border: `1px solid ${gold}`, color: gold,
+                }}>Save Directions</button>
+              </form>
             </div>
           ))}
         </div>
@@ -1082,24 +1202,50 @@ export default function App() {
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterBusy, setNewsletterBusy] = useState(false);
   const [showDesignRequest, setShowDesignRequest] = useState(false);
+  const [designRequestStep, setDesignRequestStep] = useState("brief"); // "brief" | "payment"
   const [designRequestMsg, setDesignRequestMsg] = useState("");
   const [designRequestName, setDesignRequestName] = useState("");
   const [designRequestContact, setDesignRequestContact] = useState("");
   const [designRequestBusy, setDesignRequestBusy] = useState(false);
   const [designRequestSent, setDesignRequestSent] = useState(false);
+  const DESIGN_REQUEST_FEE_INR = 499;
+  const DESIGN_REQUEST_FEE_USD = 4.99;
+  const designRequestFeeLabel = currencyMode === "USD" ? "$" + DESIGN_REQUEST_FEE_USD.toFixed(2) : currency(DESIGN_REQUEST_FEE_INR);
 
-  async function submitDesignRequest(e) {
+  function closeDesignRequest() {
+    setShowDesignRequest(false);
+    setDesignRequestStep("brief");
+  }
+
+  // Step 1: just moves the brief on to the payment screen — nothing's sent
+  // yet, same two-step shape as checkout (fill in details, then pay).
+  function reviewDesignRequest(e) {
     e.preventDefault();
+    setDesignRequestStep("payment");
+  }
+
+  // Step 2: same manual-UPI pattern as placeOrder() — persist a real,
+  // admin-reviewable row (with the fee snapshotted server-side) and hand
+  // the buyer to WhatsApp with the brief + a note that a payment
+  // screenshot is attached, so an admin can match and confirm it there.
+  async function confirmDesignRequestPaid() {
     setDesignRequestBusy(true);
     try {
       await apiFetch("/design-requests", {
         method: "POST",
         body: JSON.stringify({ message: designRequestMsg, name: designRequestName, contact: designRequestContact }),
       });
+      const waMessage =
+        `Custom design request from resembles.nothing\n\n` +
+        `Name: ${designRequestName || user?.name || ""}\nContact: ${designRequestContact || user?.email || ""}\n\n` +
+        `Brief:\n${designRequestMsg}\n\n` +
+        `Paid the ${designRequestFeeLabel} design fee via UPI — screenshot of the payment is attached in this chat.`;
+      window.open(`https://wa.me/918450955977?text=${encodeURIComponent(waMessage)}`, "_blank");
       setDesignRequestSent(true);
       setDesignRequestMsg("");
       setDesignRequestName("");
       setDesignRequestContact("");
+      setDesignRequestStep("brief");
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : "Something went wrong — try again.");
     } finally {
@@ -1576,12 +1722,21 @@ export default function App() {
     return { name, designCount: designs.length, soldCount: sold.length, payoutOwed };
   });
 
-  // SEO / AI-crawler groundwork: structured Product data for whichever page is showing.
-  // Note: a client-only React app like this still needs server-side rendering to be
-  // reliably indexed — this schema is groundwork for that, not a substitute for it.
+  // SEO / AI-crawler groundwork: structured Product data, title, meta
+  // description, and canonical URL for whichever page is showing — now that
+  // every page has a real path (see PAGE_PATH/navigate/resolvePath above),
+  // this is what makes each one look distinct to a crawler instead of every
+  // page reporting the same generic homepage title.
+  // Note: a client-only React app like this still needs server-side rendering
+  // to be reliably indexed — this is groundwork for that, not a substitute.
   useEffect(() => {
     const existing = document.getElementById("product-jsonld");
     if (existing) existing.remove();
+
+    let title = PAGE_SEO.shop.title;
+    let description = PAGE_SEO.shop.description;
+    let canonicalPath = "/";
+
     if (page === "product" && viewProduct) {
       const data = {
         "@context": "https://schema.org",
@@ -1603,11 +1758,46 @@ export default function App() {
       script.type = "application/ld+json";
       script.textContent = JSON.stringify(data);
       document.head.appendChild(script);
-      document.title = `${viewProduct.name} — resembles.nothing`;
-    } else {
-      document.title = "resembles.nothing — One-of-One Wall Art, Tapestries & Canvas | India";
+      title = `${viewProduct.name} — resembles.nothing`;
+      description = (viewProduct.blurb || viewProduct.desc || description).slice(0, 200);
+      canonicalPath = `/design/${viewProduct.id}`;
+    } else if (page === "artist" && viewArtist) {
+      title = `${viewArtist} — Artist at resembles.nothing`;
+      description = `Designs by ${viewArtist} at resembles.nothing.`;
+      canonicalPath = `/artist/${slugify(viewArtist)}`;
+    } else if (PAGE_SEO[page]) {
+      title = PAGE_SEO[page].title;
+      description = PAGE_SEO[page].description;
+      canonicalPath = PAGE_PATH[page] || "/";
     }
-  }, [page, viewProduct]);
+
+    document.title = title;
+
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement("meta");
+      metaDesc.setAttribute("name", "description");
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.setAttribute("content", description);
+
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.setAttribute("rel", "canonical");
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute("href", `https://resemblesnothing.in${canonicalPath}`);
+  }, [page, viewProduct, viewArtist]);
+
+  // Pushes a real URL without touching React state — every open*() below
+  // calls this after setting its own state, and resolvePath() (initial
+  // load + browser back/forward) calls those same open*() functions, so
+  // this only ever needs to run once per actual navigation: if we're
+  // already sitting on `path` (the resolvePath case), it's a no-op.
+  function navigate(path) {
+    if (window.location.pathname !== path) window.history.pushState(null, "", path);
+  }
 
   function openProduct(p) {
     setViewProduct(p);
@@ -1617,32 +1807,96 @@ export default function App() {
     setSelectedSize(defaultSizeFor(withFormat(p, firstFormat)));
     setPage("product");
     window.scrollTo(0, 0);
+    navigate(`/design/${p.id}`);
   }
   function backToShop() {
     setPage("shop");
     window.scrollTo(0, 0);
+    navigate("/");
   }
   function openArtist(name) {
     setViewArtist(name);
     setPage("artist");
     window.scrollTo(0, 0);
+    navigate(`/artist/${slugify(name)}`);
   }
   function openExplore() {
     setPage("explore");
     window.scrollTo(0, 0);
+    navigate(PAGE_PATH.explore);
   }
   function openWorlds() {
     setPage("worlds");
     window.scrollTo(0, 0);
+    navigate(PAGE_PATH.worlds);
   }
   function openSaved() {
     setPage("saved");
     window.scrollTo(0, 0);
+    navigate(PAGE_PATH.saved);
   }
   function openInfoPage(name) {
     setPage(name);
     window.scrollTo(0, 0);
+    navigate(PAGE_PATH[name] || "/");
   }
+
+  // Turns a URL path into the app state that renders it — shared by the
+  // initial-load deep link handler and the browser back/forward listener
+  // below. Returns true once it's resolved the path (or determined "/"),
+  // false when it can't yet (e.g. a /design/:slug link before dbProducts
+  // has loaded) so the caller knows to retry once more data is in.
+  function resolvePath(path) {
+    const pageEntry = Object.entries(PAGE_PATH).find(([, p]) => p === path);
+    if (pageEntry) {
+      const [name] = pageEntry;
+      if (name === "shop") { setPage("shop"); window.scrollTo(0, 0); }
+      else if (name === "explore") openExplore();
+      else if (name === "worlds") openWorlds();
+      else if (name === "saved") openSaved();
+      else openInfoPage(name);
+      return true;
+    }
+    const designMatch = path.match(/^\/design\/([^/]+)\/?$/);
+    if (designMatch) {
+      const prod = allProducts.find((p) => p.id === designMatch[1]);
+      if (prod) { openProduct(prod); return true; }
+      return false;
+    }
+    const artistMatch = path.match(/^\/artist\/([^/]+)\/?$/);
+    if (artistMatch) {
+      const found = [...new Set(allProducts.map((p) => p.artist))].find((n) => slugify(n) === artistMatch[1]);
+      if (found) { openArtist(found); return true; }
+      return false;
+    }
+    return false; // unrecognized path — leave the default "shop" state as-is
+  }
+
+  // Deep links: whatever URL someone actually landed on (shared link, a
+  // bookmark, a search result) — not just "/". A /design/:slug or
+  // /artist/:slug link can arrive before dbProducts has finished loading,
+  // so this keeps retrying (guarded by pathResolved so it doesn't re-run
+  // pointlessly once it's already landed) until resolvePath finds a match
+  // or gives up. Runs once for "/" since there's nothing to resolve there.
+  const pathResolved = useRef(false);
+  useEffect(() => {
+    if (pathResolved.current) return;
+    const path = window.location.pathname;
+    if (path === "/") { pathResolved.current = true; return; }
+    if (resolvePath(path)) pathResolved.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbProducts]);
+
+  // Browser back/forward — resolvePath() reuses the same open*() functions
+  // as a real click, so it stays in sync with everything those do (title,
+  // scroll position, etc.); their navigate() call is a no-op here since
+  // the browser already moved window.location before this fires.
+  useEffect(() => {
+    function onPopState() { resolvePath(window.location.pathname); }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbProducts]);
 
   const ink = "#0a0a09", ink2 = "#141311", gold = "#c9a24b", goldHi = "#e9cc84",
     cream = "#efe7d6", stone = "#948c78", line = "rgba(201,162,75,0.28)";
@@ -1838,7 +2092,7 @@ export default function App() {
             <a href="#faq" style={{ color: stone, textDecoration: "none" }}>FAQs</a>
             <a href="#" onClick={(e) => { e.preventDefault(); if (user) setShowProfile(true); else setShowLogin(true); }} style={{ color: stone, textDecoration: "none" }}>Sell Your Art</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setShowQuiz(true); }} style={{ color: stone, textDecoration: "none" }}>Find Your Art Persona</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); setDesignRequestSent(false); setShowDesignRequest(true); }} style={{ color: stone, textDecoration: "none" }}>Request a Design</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); setDesignRequestSent(false); setDesignRequestStep("brief"); setShowDesignRequest(true); }} style={{ color: stone, textDecoration: "none" }}>Request a Design</a>
           </nav>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }} className="header-icons">
             <IconBtn className="icon-search" onClick={() => { setShowSearch(true); setShowNotifs(false); setShowAccount(false); }} title="Search">🔍</IconBtn>
@@ -1917,7 +2171,7 @@ export default function App() {
             <a href="#faq" onClick={() => setShowMobileNav(false)} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>FAQs</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); if (user) setShowProfile(true); else setShowLogin(true); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Sell Your Art</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); setShowQuiz(true); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Find Your Art Persona</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); setDesignRequestSent(false); setShowDesignRequest(true); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Request a Design</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); setShowMobileNav(false); setDesignRequestSent(false); setDesignRequestStep("brief"); setShowDesignRequest(true); }} style={{ color: cream, textDecoration: "none", padding: "12px 0", borderBottom: `1px solid ${line}` }}>Request a Design</a>
 
             {/* Bell + currency move here on mobile since the header row itself
                 is slimmed down to just search + cart, matching the app-style
@@ -3108,25 +3362,33 @@ export default function App() {
         </div>
       )}
 
-      {/* REQUEST A DESIGN MODAL — a free-text idea box, reviewed by hand
-          (no automated quoting). Logged-in shoppers just describe the idea;
-          signed-out visitors also leave a name + way to reach them back. */}
+      {/* REQUEST A DESIGN MODAL — a paid custom-design commission: a brief
+          step, then a payment step (same manual-UPI pattern as checkout).
+          Once paid, an admin works up a handful of directions and the
+          customer picks a favourite; the finished design then gets listed
+          as a normal Product so it can be bought in any format/size, same
+          checkout as everything else — this modal only covers the
+          commission fee, not that later purchase. */}
       {showDesignRequest && (
-        <Modal onClose={() => setShowDesignRequest(false)} width={480}>
-          <button onClick={() => setShowDesignRequest(false)} style={{ position: "absolute", top: 18, right: 18, background: "none", border: "none", color: stone, fontSize: 20, cursor: "pointer" }}>×</button>
+        <Modal onClose={closeDesignRequest} width={480}>
+          <button onClick={closeDesignRequest} style={{ position: "absolute", top: 18, right: 18, background: "none", border: "none", color: stone, fontSize: 20, cursor: "pointer" }}>×</button>
           {designRequestSent ? (
             <>
               <div style={{ fontSize: 34, marginBottom: 14 }}>✓</div>
-              <h3 style={{ fontSize: 22, marginBottom: 10 }}>Got it.</h3>
-              <p style={{ color: stone, fontSize: 13.5, lineHeight: 1.7, marginBottom: 20 }}>We read every idea ourselves — if it's something we can make, we'll reach out to talk sizing, price, and timeline.</p>
-              <Btn onClick={() => setShowDesignRequest(false)}>Close</Btn>
+              <h3 style={{ fontSize: 22, marginBottom: 10 }}>Brief sent.</h3>
+              <p style={{ color: stone, fontSize: 13.5, lineHeight: 1.7, marginBottom: 20 }}>
+                If WhatsApp didn't open on its own, make sure you send us that payment screenshot. Once we've confirmed it, we'll get to work and come back with a handful of directions to choose from — usually within a few days.
+              </p>
+              <Btn onClick={closeDesignRequest}>Close</Btn>
             </>
-          ) : (
+          ) : designRequestStep === "brief" ? (
             <>
               <Eyebrow>Request a Design</Eyebrow>
               <h3 style={{ fontSize: 22, margin: "14px 0 8px" }}>Have an idea? Tell us.</h3>
-              <p style={{ color: stone, fontSize: 13, lineHeight: 1.7, marginBottom: 20 }}>Describe what you're picturing — a mood, a subject, a piece you've seen and want reimagined. We'll tell you if it's something we can make.</p>
-              <form onSubmit={submitDesignRequest}>
+              <p style={{ color: stone, fontSize: 13, lineHeight: 1.7, marginBottom: 20 }}>
+                Describe what you're picturing — a mood, a subject, a piece you've seen and want reimagined. For <strong style={{ color: goldHi }}>{designRequestFeeLabel}</strong>, we'll come back with 5–6 initial directions to pick from. Once you choose your favourite, it's finished and you can order it as a canvas, tapestry, or whatever format you like — priced the same as everything else in the shop.
+              </p>
+              <form onSubmit={reviewDesignRequest}>
                 <label style={{ display: "block", marginBottom: 16 }}>
                   <span style={{ display: "block", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: stone, marginBottom: 7 }}>Your idea</span>
                   <textarea
@@ -3142,8 +3404,26 @@ export default function App() {
                     <Field label="How should we reach you?" value={designRequestContact} onChange={(e) => setDesignRequestContact(e.target.value)} placeholder="Email, phone, or WhatsApp number" required />
                   </>
                 )}
-                <Btn full type="submit" disabled={designRequestBusy} style={{ marginTop: 6 }}>{designRequestBusy ? "…" : "Send Idea"}</Btn>
+                <Btn full type="submit" style={{ marginTop: 6 }}>Continue to Payment — {designRequestFeeLabel}</Btn>
               </form>
+            </>
+          ) : (
+            <>
+              <Eyebrow>Request a Design</Eyebrow>
+              <h3 style={{ fontSize: 22, margin: "14px 0 8px" }}>Pay the design fee</h3>
+              <div style={{ border: `1px solid ${line}`, padding: 18, marginBottom: 18, textAlign: "center" }}>
+                <img src="/payment-qr.jpg" alt="UPI payment QR code" style={{ width: 190, height: 190, objectFit: "contain", margin: "0 auto 12px", background: "#f5f5f5" }} />
+                <div style={{ fontSize: 15, color: cream, marginBottom: 2 }}>Scan and pay <strong>{designRequestFeeLabel}</strong></div>
+                <div style={{ fontSize: 11.5, color: stone }}>with any UPI app — GPay, PhonePe, Paytm, etc.</div>
+                <div style={{ fontSize: 10.5, color: stone, marginTop: 8, wordBreak: "break-all" }}>UPI ID: keswaniveidehi-1@okicici</div>
+              </div>
+              <p style={{ fontSize: 11, color: stone, lineHeight: 1.7, marginBottom: 16 }}>
+                After paying, tap below — it opens WhatsApp with your brief filled in. Attach a screenshot of the payment there so we can confirm it and start on your directions.
+              </p>
+              <Btn full onClick={confirmDesignRequestPaid} disabled={designRequestBusy} style={{ marginTop: 4 }}>
+                {designRequestBusy ? "…" : "I've Paid — Send Brief on WhatsApp"}
+              </Btn>
+              <button type="button" onClick={() => setDesignRequestStep("brief")} style={{ display: "block", margin: "14px auto 0", background: "none", border: "none", color: stone, fontSize: 11.5, textDecoration: "underline", cursor: "pointer" }}>← Back to edit your idea</button>
             </>
           )}
         </Modal>

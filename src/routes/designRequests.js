@@ -33,10 +33,49 @@ router.get("/", requireAuth, requireAdmin, async (req, res) => {
   res.json({ requests });
 });
 
+// Admin confirms the commission fee actually landed (matched a payment
+// screenshot by hand, same as orders/:id/confirm-payment) — idempotent, so
+// tapping it twice isn't an error, it just no-ops the second time.
+router.post("/:id/confirm-payment", requireAuth, requireAdmin, async (req, res) => {
+  const request = await prisma.designRequest.findUnique({ where: { id: req.params.id } });
+  if (!request) return res.status(404).json({ error: "Request not found" });
+  if (request.paymentConfirmed) return res.json({ request }); // already confirmed — no-op, not an error
+
+  const updated = await prisma.designRequest.update({
+    where: { id: request.id },
+    data: {
+      paymentConfirmed: true,
+      paymentConfirmedAt: new Date(),
+      status: request.status === "NEW" ? "IN_PROGRESS" : request.status,
+    },
+  });
+  res.json({ request: updated });
+});
+
+// Moves a request through its stages and/or attaches the first round of
+// design directions — pasting iterationImages in counts as "sent" on its
+// own (moves status to ITERATIONS_SENT) unless the caller also explicitly
+// set a different status in the same call.
 router.patch("/:id", requireAuth, requireAdmin, async (req, res) => {
-  const { status } = req.body;
-  if (!["NEW", "REVIEWED", "DONE"].includes(status)) return res.status(400).json({ error: "Invalid status" });
-  const request = await prisma.designRequest.update({ where: { id: req.params.id }, data: { status } });
+  const data = {};
+
+  if (req.body.status !== undefined) {
+    if (!["NEW", "IN_PROGRESS", "ITERATIONS_SENT", "DONE"].includes(req.body.status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+    data.status = req.body.status;
+  }
+  if (req.body.iterationImages !== undefined) {
+    if (!Array.isArray(req.body.iterationImages)) return res.status(400).json({ error: "iterationImages must be a list of URLs" });
+    data.iterationImages = req.body.iterationImages.map((u) => String(u).trim()).filter(Boolean);
+    if (data.status === undefined) data.status = "ITERATIONS_SENT";
+  }
+  if (req.body.iterationNote !== undefined) {
+    data.iterationNote = String(req.body.iterationNote || "").trim() || null;
+  }
+  if (Object.keys(data).length === 0) return res.status(400).json({ error: "Nothing to update" });
+
+  const request = await prisma.designRequest.update({ where: { id: req.params.id }, data });
   res.json({ request });
 });
 
