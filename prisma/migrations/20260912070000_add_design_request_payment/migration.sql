@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE "DesignRequest" ADD COLUMN     "feeINR" INTEGER NOT NULL DEFAULT 499,
+ADD COLUMN     "feeUSD" DOUBLE PRECISION NOT NULL DEFAULT 4.99,
+ADD COLUMN     "paymentMethod" TEXT NOT NULL DEFAULT 'UPI_MANUAL',
+ADD COLUMN     "paymentConfirmed" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "paymentConfirmedAt" TIMESTAMP(3),
+ADD COLUMN     "iterationImages" TEXT[] DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN     "iterationNote" TEXT;

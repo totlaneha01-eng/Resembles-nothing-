@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <title>resembles.nothing — One-of-One Wall Art, Tapestries & Canvas | India</title>
+    <title>resembles.nothing — Curated, Limited-Edition Wall Art, Tapestries & Canvas | Ships Worldwide</title>
     <meta name="description" content="Hand-picked, limited-edition tapestries, canvas prints and split-canvas art — each design capped at a small edition, made to order, and shipped worldwide. Founder-backed, prepaid, no dropshipping." />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://resemblesnothing.in/" />
@@ -19,6 +19,8 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:url" content="https://resemblesnothing.in/" />
     <meta property="og:locale" content="en_IN" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:locale:alternate" content="en_GB" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
@@ -45,9 +47,14 @@
     </style>
 
     <!-- Static site-level structured data (present even without JS, unlike the
-         per-product schema src/App.tsx injects on the fly — see that file's
-         comment for why per-product pages still need real routes/SSR to be
-         properly indexed or to unfurl richly when shared). -->
+         per-product/per-page schema, title, description and canonical
+         src/App.tsx now keeps in sync with the URL on every navigation —
+         see PAGE_SEO / resolvePath there and the Express catch-all in
+         src/index.js that lets each of those URLs actually be requested
+         directly. That closes most of the gap; real server-side rendering
+         would still get a page indexed faster/more reliably than a
+         client-rendered one, but it's no longer a hard requirement for
+         each page to have its own crawlable, shareable URL at all). -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -57,7 +64,8 @@
         "url": "https://resemblesnothing.in/",
         "logo": "https://resemblesnothing.in/icon-512.png",
         "image": "https://resemblesnothing.in/og-image.png",
-        "priceRange": "₹₹"
+        "priceRange": "₹₹",
+        "areaServed": "Worldwide"
       }
     </script>
   </head>
