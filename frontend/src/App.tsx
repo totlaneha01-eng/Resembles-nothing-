@@ -126,15 +126,15 @@ function defaultSizeFor(product) {
 }
 
 const CATALOG = [
-  { id: "tiger", name: "Royal Sovereign", category: "Abstract", price: 1499, size: "100 × 150 cm · Tapestry", format: "tapestry", widthCm: 100, images: [IMG.tiger, IMG.tiger_d, IMG.tiger_e], blurb: "0% drama, 100% majestic.", desc: "A half-portrait tiger in cobalt blue, painted with just enough restraint to feel expensive instead of loud.", story: "The brief we gave ourselves for this one was \"confident, not loud.\" Most tiger art goes for maximum drama — bared teeth, jungle background, orange everywhere. We stripped all of that out and left a single cobalt panel and a portrait that's more sleepy than fierce. It works as a solo statement piece in a living room that already has enough going on and just needs one grounded, quiet focal point.", features: FABRIC_FEATURES, cartCount: 6, sold: false, artist: "resembles.nothing studio" },
-  { id: "roses", name: "Amateur Flirt", category: "Abstract", price: 4999, size: "30 × 40 cm · Canvas", format: "canvas", widthCm: 30, images: [IMG.roses, IMG.roses_d, IMG.roses_e], blurb: "If love doesn't work out, at least the aesthetic does.", desc: "A painterly back-turned figure holding a bouquet, rendered in warm brushstrokes.", story: "Our most-loved canvas, and also the one we get the most DMs about — mostly people asking if it's based on someone specific (it isn't). We painted it loose and a little unfinished on purpose, so the brushstrokes still show through instead of looking airbrushed. It sells constantly as a gift for anniversaries, but just as often to people buying it for themselves, which is honestly the better reason.", features: CANVAS_FEATURES, cartCount: 23, sold: false, artist: "resembles.nothing studio" },
-  { id: "lion", name: "Silent Sovereign", category: "Motivation", price: 4999, size: "30 × 40 cm · Canvas", format: "canvas", widthCm: 30, images: [IMG.lion, IMG.lion_d, IMG.lion_e], blurb: "Doesn't judge. Just silently stares into your soul.", desc: "A lion at rest under a night sky, painted in warm gradients.", story: "We wanted a motivational piece that didn't rely on text to make its point — no \"hustle\" typography, just a lion at rest, fully aware of its own power and in no hurry to prove it. The moon and stars behind it were built up in layers of gradient rather than a flat sky, so it holds up as a lamp-lit night piece as well as it does in daylight. Reads well in a study, office corner, or reading nook.", features: CANVAS_FEATURES, cartCount: 3, sold: false, artist: "resembles.nothing studio" },
-  { id: "krishna", name: "Dusk Raga", category: "Spiritual", price: 7199, size: "30 × 40 cm panel · Triptych", format: "triptych", widthCm: 95, images: [IMG.krishna, IMG.krishna_d, IMG.krishna_e], blurb: "Three panels, one flute, endless calm.", desc: "A triptych of Krishna at dusk, split across three framed panels that read as one continuous scene.", story: "Splitting a single scene across three panels is a genuinely difficult composition problem — the flute, the glow, and the horizon all have to land in exactly the right place so the gaps between frames don't break the moment. This is our most requested triptych, usually bought for a living room or entryway that needs one serious focal point rather than a gallery wall of smaller pieces.", features: CANVAS_FEATURES, cartCount: 9, sold: false, artist: "resembles.nothing studio" },
-  { id: "cards", name: "Royal Flush", category: "Abstract", price: 4999, size: "30 × 40 cm · Canvas", format: "canvas", widthCm: 30, images: [IMG.cards, IMG.cards_d, IMG.cards_e], blurb: "At least these guys stay in their positions.", desc: "King, Ace, Queen — geometric portraits in a bold mid-century palette.", story: "We wanted a set that reads as a trio without needing three separate canvases to hang and align — so King, Ace, and Queen were composed as one continuous mid-century-style illustration and printed as a single cohesive canvas. It's a favourite for a games room, a bar cart corner, or anyone who wants a print with a sense of humour about status.", features: CANVAS_FEATURES, cartCount: 2, sold: true, artist: "resembles.nothing studio" },
+  { id: "tiger", name: "Royal Sovereign", category: "Animals", price: 1499, size: "100 × 150 cm · Tapestry", format: "tapestry", widthCm: 100, images: [IMG.tiger, IMG.tiger_d, IMG.tiger_e], blurb: "0% drama, 100% majestic.", desc: "A half-portrait tiger in cobalt blue, painted with just enough restraint to feel expensive instead of loud.", story: "The brief we gave ourselves for this one was \"confident, not loud.\" Most tiger art goes for maximum drama — bared teeth, jungle background, orange everywhere. We stripped all of that out and left a single cobalt panel and a portrait that's more sleepy than fierce. It works as a solo statement piece in a living room that already has enough going on and just needs one grounded, quiet focal point.", features: FABRIC_FEATURES, cartCount: 6, sold: false, artist: "resembles.nothing studio" },
+  { id: "roses", name: "Amateur Flirt", category: "People", price: 4999, size: "30 × 40 cm · Canvas", format: "canvas", widthCm: 30, images: [IMG.roses, IMG.roses_d, IMG.roses_e], blurb: "If love doesn't work out, at least the aesthetic does.", desc: "A painterly back-turned figure holding a bouquet, rendered in warm brushstrokes.", story: "Our most-loved canvas, and also the one we get the most DMs about — mostly people asking if it's based on someone specific (it isn't). We painted it loose and a little unfinished on purpose, so the brushstrokes still show through instead of looking airbrushed. It sells constantly as a gift for anniversaries, but just as often to people buying it for themselves, which is honestly the better reason.", features: CANVAS_FEATURES, cartCount: 23, sold: false, artist: "resembles.nothing studio" },
+  { id: "lion", name: "Silent Sovereign", category: "Animals", price: 4999, size: "30 × 40 cm · Canvas", format: "canvas", widthCm: 30, images: [IMG.lion, IMG.lion_d, IMG.lion_e], blurb: "Doesn't judge. Just silently stares into your soul.", desc: "A lion at rest under a night sky, painted in warm gradients.", story: "We wanted a motivational piece that didn't rely on text to make its point — no \"hustle\" typography, just a lion at rest, fully aware of its own power and in no hurry to prove it. The moon and stars behind it were built up in layers of gradient rather than a flat sky, so it holds up as a lamp-lit night piece as well as it does in daylight. Reads well in a study, office corner, or reading nook.", features: CANVAS_FEATURES, cartCount: 3, sold: false, artist: "resembles.nothing studio" },
+  { id: "krishna", name: "Dusk Raga", category: "Myth & Divinity", price: 7199, size: "30 × 40 cm panel · Triptych", format: "triptych", widthCm: 95, images: [IMG.krishna, IMG.krishna_d, IMG.krishna_e], blurb: "Three panels, one flute, endless calm.", desc: "A triptych of Krishna at dusk, split across three framed panels that read as one continuous scene.", story: "Splitting a single scene across three panels is a genuinely difficult composition problem — the flute, the glow, and the horizon all have to land in exactly the right place so the gaps between frames don't break the moment. This is our most requested triptych, usually bought for a living room or entryway that needs one serious focal point rather than a gallery wall of smaller pieces.", features: CANVAS_FEATURES, cartCount: 9, sold: false, artist: "resembles.nothing studio" },
+  { id: "cards", name: "Royal Flush", category: "Vintage & Retro", price: 4999, size: "30 × 40 cm · Canvas", format: "canvas", widthCm: 30, images: [IMG.cards, IMG.cards_d, IMG.cards_e], blurb: "At least these guys stay in their positions.", desc: "King, Ace, Queen — geometric portraits in a bold mid-century palette.", story: "We wanted a set that reads as a trio without needing three separate canvases to hang and align — so King, Ace, and Queen were composed as one continuous mid-century-style illustration and printed as a single cohesive canvas. It's a favourite for a games room, a bar cart corner, or anyone who wants a print with a sense of humour about status.", features: CANVAS_FEATURES, cartCount: 2, sold: true, artist: "resembles.nothing studio" },
   { id: "cubistembrace", name: "Cubist Embrace", category: "Abstract", price: 4999, size: "30 × 40 cm · Canvas", format: "canvas", widthCm: 30, images: [IMG.couple_far, IMG.couple_close, IMG.couple_exact], blurb: "Every colour in the room, wrapped around each other.", desc: "A fractured, kaleidoscope-toned embrace — two figures built entirely from overlapping colour blocks.", story: "We wanted a romance piece that didn't rely on realism to feel intimate — so this one is built almost entirely from colour theory. Warm oranges and yellows for the closeness, cool blues and greens for the calm underneath it. It reads as abstract from across the room, but the closer you get, the more clearly the embrace resolves. A favourite for couples who met somewhere that wasn't boring.", features: CANVAS_FEATURES, cartCount: 5, sold: false, artist: "Priya Menon" },
-  { id: "chessmove", name: "The Power Move", category: "Motivation", price: 4999, size: "30 × 40 cm · Canvas", format: "canvas", widthCm: 30, images: [IMG.chess_far, IMG.chess_close, IMG.chess_exact], blurb: "Making power moves and looking beautiful doing it.", desc: "A hand mid-checkmate, red velvet sleeve trailing across a marble chessboard.", story: "Every detail here is deliberate — the gold rings, the red nails, the sleeve caught mid-motion. We wanted a motivational piece that skipped the typography entirely and just showed the moment of the win instead. It's become the go-to for a home office or study corner that wants to say \"I already thought three moves ahead\" without saying anything at all.", features: CANVAS_FEATURES, cartCount: 8, sold: false, artist: "Kabir Rao" },
-  { id: "tigerwoman", name: "Two Sides of the Same Fire", category: "Abstract", price: 1499, size: "100 × 150 cm · Tapestry", format: "tapestry", widthCm: 100, images: [IMG.tigerwoman_far, IMG.tigerwoman_close, IMG.tigerwoman_exact], blurb: "Equal parts predator and protector.", desc: "A mirrored tiger-and-woman composition, split down the middle by two crossing triangles.", story: "This one started as a question: what if strength and softness were painted as the same colour palette instead of opposites? The tiger halves mirror each other exactly, the woman's face sits dead-center, unreadable — somewhere between fierce and serene. It's for a wall that wants to be looked at twice.", features: FABRIC_FEATURES, cartCount: 6, sold: false, artist: "Priya Menon" },
-  { id: "pinktiger", name: "Rose Gold Tiger", category: "Abstract", price: 4999, size: "30 × 40 cm · Canvas", format: "canvas", widthCm: 30, images: [IMG.pinktiger_far, IMG.pinktiger_close, IMG.pinktiger_exact], blurb: "Softer palette, same amount of don't-test-me.", desc: "A geometric tiger portrait rendered entirely in pink, coral, and teal.", story: "We kept getting asked for a tiger piece that wasn't navy or orange — something that could sit in a softer, warmer room without losing any of the attitude. This is the answer: the same confident stare, translated into a palette that reads more sunset than jungle.", features: CANVAS_FEATURES, cartCount: 4, sold: false, artist: "Kabir Rao" },
+  { id: "chessmove", name: "The Power Move", category: "People", price: 4999, size: "30 × 40 cm · Canvas", format: "canvas", widthCm: 30, images: [IMG.chess_far, IMG.chess_close, IMG.chess_exact], blurb: "Making power moves and looking beautiful doing it.", desc: "A hand mid-checkmate, red velvet sleeve trailing across a marble chessboard.", story: "Every detail here is deliberate — the gold rings, the red nails, the sleeve caught mid-motion. We wanted a motivational piece that skipped the typography entirely and just showed the moment of the win instead. It's become the go-to for a home office or study corner that wants to say \"I already thought three moves ahead\" without saying anything at all.", features: CANVAS_FEATURES, cartCount: 8, sold: false, artist: "Kabir Rao" },
+  { id: "tigerwoman", name: "Two Sides of the Same Fire", category: "Surreal", price: 1499, size: "100 × 150 cm · Tapestry", format: "tapestry", widthCm: 100, images: [IMG.tigerwoman_far, IMG.tigerwoman_close, IMG.tigerwoman_exact], blurb: "Equal parts predator and protector.", desc: "A mirrored tiger-and-woman composition, split down the middle by two crossing triangles.", story: "This one started as a question: what if strength and softness were painted as the same colour palette instead of opposites? The tiger halves mirror each other exactly, the woman's face sits dead-center, unreadable — somewhere between fierce and serene. It's for a wall that wants to be looked at twice.", features: FABRIC_FEATURES, cartCount: 6, sold: false, artist: "Priya Menon" },
+  { id: "pinktiger", name: "Rose Gold Tiger", category: "Animals", price: 4999, size: "30 × 40 cm · Canvas", format: "canvas", widthCm: 30, images: [IMG.pinktiger_far, IMG.pinktiger_close, IMG.pinktiger_exact], blurb: "Softer palette, same amount of don't-test-me.", desc: "A geometric tiger portrait rendered entirely in pink, coral, and teal.", story: "We kept getting asked for a tiger piece that wasn't navy or orange — something that could sit in a softer, warmer room without losing any of the attitude. This is the answer: the same confident stare, translated into a palette that reads more sunset than jungle.", features: CANVAS_FEATURES, cartCount: 4, sold: false, artist: "Kabir Rao" },
 ];
 
 const IMAGE_LABELS = ["From across the room", "Up close", "True to design"];
@@ -225,18 +225,38 @@ function Stars({ n }) {
 // Content themes only — not "Canvas"/"Tapestry", which are formats a design
 // gets ordered in (see Product.formats), not what the design is about. A
 // design's category and its available formats are independent choices.
-const CATEGORIES = ["All", "Sports", "Aviation", "Psychedelic", "Abstract", "Motivation", "Spiritual", "Movies", "Icons"];
+// This list matches the "Collection Architecture" from the brand deck.
+// "Limited Series" and "Custom" from that deck were left out here on
+// purpose — they're not content themes like the rest, they're program
+// labels (an edition-status flag, and the "Request a Design" feature we
+// already built), so they don't belong in a theme filter.
+const CATEGORIES = [
+  "All", "Myth & Divinity", "Celestial", "Nature", "Animals", "People", "Places",
+  "Abstract", "Vintage & Retro", "Botanical", "Symbols & Sigils", "Culture & Rituals",
+  "Surreal", "Pop Culture", "Minimal", "Fantasy", "Spirituality", "Human Emotions",
+  "Zodiac & Cosmic Signs",
+];
 
 // One line of flavour text per theme, shown on the catalogue's category cards.
 const CATEGORY_TAGLINES = {
-  Sports: "Glory, framed.",
-  Aviation: "Built for those who look up.",
-  Psychedelic: "Reality, gently bent.",
-  Abstract: "Shapes with something to say.",
-  Motivation: "For walls that talk back.",
-  Spiritual: "Stillness you can hang.",
-  Movies: "Frame by frame, forever.",
-  Icons: "Faces that don't need captions.",
+  "Myth & Divinity": "Gods, myths, and the sacred.",
+  "Celestial": "Stars, moons, and the space between.",
+  "Nature": "Roots and realms.",
+  "Animals": "Wild, watchful, unbothered.",
+  "People": "Faces with a story.",
+  "Places": "Doorways to elsewhere.",
+  "Abstract": "Shapes with something to say.",
+  "Vintage & Retro": "Yesterday, reimagined.",
+  "Botanical": "Bloom by bloom.",
+  "Symbols & Sigils": "Marks that mean more.",
+  "Culture & Rituals": "Traditions, retold.",
+  "Surreal": "Reality, gently bent.",
+  "Pop Culture": "Loud, now, unforgettable.",
+  "Minimal": "Less noise, more feeling.",
+  "Fantasy": "Worlds that don't exist yet.",
+  "Spirituality": "Stillness you can hang.",
+  "Human Emotions": "Feelings, framed.",
+  "Zodiac & Cosmic Signs": "Written in the stars.",
 };
 
 const FAQS = [
@@ -320,7 +340,7 @@ function Eyebrow({ children }) {
 function Logo({ size = 34 }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <img src={IMG.logo} alt="" style={{ width: size, height: size, borderRadius: "50%", border: "1px solid #c9a24b", objectFit: "cover" }} />
+      <img src="/icon-512.png" alt="" style={{ width: size, height: size, objectFit: "contain" }} />
       <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: size * 0.42, color: "#efe7d6", letterSpacing: "0.01em" }}>
         resembles<em style={{ color: "#c9a24b", fontStyle: "normal" }}>.nothing</em>
       </span>
@@ -2255,6 +2275,56 @@ export default function App() {
             <h1 style={{ fontSize: "clamp(1.9rem,3.8vw,2.8rem)", marginTop: 14, marginBottom: 24 }}>Portals to different worlds.</h1>
             <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 16 }}>resembles.nothing makes one-of-one and small-edition wall art — tapestries, canvas prints, and split canvas — designed to feel like nothing else already on your wall. Every piece is prepaid, made to order by our small team, and shipped worldwide.</p>
             <p style={{ color: stone, fontSize: 15, lineHeight: 1.85 }}>We're a two-person studio — Neha Totla and Laksh Keswani — and we put our own names and Instagram on this brand because we want you to know there are real people accountable for what shows up at your door. No middlemen, no dropshipping.</p>
+
+            {/* Our Vision */}
+            <div style={{ marginTop: 56, paddingTop: 40, borderTop: `1px solid ${line}` }}>
+              <Eyebrow>Our Vision</Eyebrow>
+              <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.5rem,2.8vw,2rem)", marginTop: 12, marginBottom: 18 }}>More worlds on your walls.</h2>
+              <p style={{ color: stone, fontSize: 14.5, lineHeight: 1.85, marginBottom: 14 }}>We envision a world where art is not mass-produced, but deeply personal — where every wall can be a portal to a thought, a place, a mood, a version of you.</p>
+              <p style={{ color: stone, fontSize: 14.5, lineHeight: 1.85, marginBottom: 14 }}>We see homes, studios, and spaces filled with art that sparks curiosity, starts conversations, and makes people feel something real.</p>
+              <p style={{ color: goldHi, fontSize: 14.5, fontStyle: "italic", lineHeight: 1.7 }}>A more imaginative tomorrow. One wall at a time.</p>
+            </div>
+
+            {/* Our Mission */}
+            <div style={{ marginTop: 48, paddingTop: 40, borderTop: `1px solid ${line}` }}>
+              <Eyebrow>Our Mission</Eyebrow>
+              <div style={{ display: "flex", flexDirection: "column", gap: 22, marginTop: 22 }}>
+                {[
+                  { label: "To Create", body: "Art that feels alive — tapestries and canvases that open doors to new worlds." },
+                  { label: "To Inspire", body: "People to surround themselves with pieces that spark curiosity, imagination, and deeper conversations." },
+                  { label: "To Make Art Accessible", body: "By bringing museum-worthy, limited-edition designs into everyday spaces, so more people can live with art that moves them." },
+                  { label: "To Build a Community", body: "Of dreamers, collectors, and free spirits who believe in a more imaginative tomorrow." },
+                  { label: "To Remind", body: "The world that art isn't just something you see — it's something you feel, live with, and something that can take you elsewhere." },
+                ].map((m) => (
+                  <div key={m.label}>
+                    <div style={{ fontSize: 11.5, letterSpacing: "0.1em", textTransform: "uppercase", color: gold, marginBottom: 6 }}>{m.label}</div>
+                    <p style={{ color: stone, fontSize: 14, lineHeight: 1.75 }}>{m.body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Brand Philosophy */}
+            <div style={{ marginTop: 48, paddingTop: 40, borderTop: `1px solid ${line}` }}>
+              <Eyebrow>Our Brand Philosophy</Eyebrow>
+              <div style={{ display: "flex", flexDirection: "column", gap: 20, marginTop: 22 }}>
+                {[
+                  { icon: "◠", label: "Art as a Portal", body: "We believe art is not just decoration, but a doorway — to emotions, to ideas, to other worlds." },
+                  { icon: "✦", label: "The Beauty of the Different", body: "We celebrate the unconventional, the unexplored, and the imagined. What doesn't fit in, truly stands out." },
+                  { icon: "☾", label: "Spaces with Soul", body: "We create pieces that transform everyday spaces into personal sanctuaries — places that feel more like you." },
+                  { icon: "⧖", label: "Limited Means Meaningful", body: "Every design is a one-of-one creation, retired forever after it finds its home. Because rarity keeps stories alive." },
+                  { icon: "✧", label: "A More Imaginative Tomorrow", body: "We exist to inspire a world that sees more, feels deeper, and lives more creatively." },
+                ].map((p) => (
+                  <div key={p.label} style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                    <div style={{ fontSize: 20, color: gold, width: 26, flexShrink: 0, textAlign: "center", lineHeight: 1.4 }}>{p.icon}</div>
+                    <div>
+                      <div style={{ fontSize: 13.5, color: cream, marginBottom: 4 }}>{p.label}</div>
+                      <p style={{ color: stone, fontSize: 13.5, lineHeight: 1.7 }}>{p.body}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
       )}
