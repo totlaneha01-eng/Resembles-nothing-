@@ -2679,6 +2679,9 @@ export default function App() {
           <div style={{ maxWidth: 680, margin: "0 auto" }}>
             <Eyebrow>About</Eyebrow>
             <h1 style={{ fontSize: "clamp(1.9rem,3.8vw,2.8rem)", marginTop: 14, marginBottom: 24 }}>Portals to different worlds.</h1>
+            <div style={{ border: `1px solid ${line}`, marginBottom: 28, aspectRatio: "16/10", overflow: "hidden" }}>
+              <img src="/portal-staircase.jpg" alt="A staircase opening onto a starlit sky — a portal to another world" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%" }} />
+            </div>
             <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 16 }}>resembles.nothing makes one-of-one and small-edition wall art — tapestries, canvas prints, and split canvas — designed to feel like nothing else already on your wall. Every piece is prepaid, made to order by our small team, and shipped worldwide.</p>
             <p style={{ color: stone, fontSize: 15, lineHeight: 1.85 }}>We're a two-person studio — Neha Totla and Laksh Keswani — and we put our own names and Instagram on this brand because we want you to know there are real people accountable for what shows up at your door. No middlemen, no dropshipping.</p>
 
