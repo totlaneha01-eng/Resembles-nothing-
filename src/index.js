@@ -13,9 +13,43 @@ app.set("trust proxy", 1);
 app.use(cors());
 app.use(express.json());
 
-// Public marketing site (public/index.html) — a static landing page, not the
-// interactive shop. It sends buyers to Instagram/WhatsApp DMs to order, so it
-// doesn't call any of the /api routes below.
+// Registered before express.static so it wins over any sitemap.xml that
+// might otherwise sit as a static file in public/ — generated fresh from
+// the DB on every request instead, so a new design shows up in it as soon
+// as it's added, with no rebuild/redeploy needed. Legacy hardcoded catalog
+// entries (frontend/src/App.tsx's CATALOG array, pre-dating the DB) aren't
+// in here since they have no DB row to read a slug from — a real gap, but
+// those predate SEO being set up at all and are a small, shrinking list.
+app.get("/sitemap.xml", async (req, res) => {
+  try {
+    const products = await prisma.product.findMany({
+      where: { status: { in: ["ACTIVE", "SOLD"] } },
+      select: { slug: true, soldAt: true },
+    });
+    const staticPaths = ["/", "/explore", "/worlds", "/about", "/shipping", "/contact", "/terms", "/privacy"];
+    const today = new Date().toISOString().slice(0, 10);
+    const urls = [
+      ...staticPaths.map((p) => `  <url><loc>https://resemblesnothing.in${p}</loc><lastmod>${today}</lastmod></url>`),
+      ...products.map((p) => {
+        const lastmod = p.soldAt ? p.soldAt.toISOString().slice(0, 10) : today;
+        return `  <url><loc>https://resemblesnothing.in/design/${p.slug}</loc><lastmod>${lastmod}</lastmod></url>`;
+      }),
+    ];
+    res.type("application/xml").send(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`
+    );
+  } catch (err) {
+    console.error("sitemap.xml generation failed:", err);
+    res.status(500).type("text/plain").send("Sitemap temporarily unavailable");
+  }
+});
+
+// Public marketing site (public/index.html) — the built React app. Every
+// page (shop, about, a design, an artist) is a real URL now (see
+// PAGE_PATH/resolvePath in frontend/src/App.tsx) but they're all still
+// client-rendered from this one HTML shell, so express.static only ever
+// actually matches a real file here (JS/CSS/image assets, favicons) — any
+// other path falls through to the SPA-fallback route below.
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 app.use("/api/auth", require("./routes/auth"));
@@ -35,6 +69,16 @@ app.use("/api/admin", require("./routes/admin"));
 app.use("/webhooks/whatsapp", require("./routes/whatsappWebhook"));
 
 app.get("/health", (req, res) => res.json({ ok: true }));
+
+// SPA fallback — must come after every /api, /webhooks and /health route
+// above (so those still 404/respond correctly) and after express.static
+// (so a real file always wins). Anything else that reaches here is a
+// client-side route like /about or /design/some-slug: without this it
+// 404s on a direct hit, a refresh, or a crawler — which is most of the
+// point of giving those routes real URLs in the first place.
+app.get(/^(?!\/api|\/webhooks|\/health).*/, (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "public", "index.html"));
+});
 
 // Centralized error handler — catches errors thrown synchronously in a route,
 // or passed explicitly via next(err). It does NOT catch a rejected promise

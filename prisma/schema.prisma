@@ -182,6 +182,14 @@ model NewsletterSubscriber {
 // hand (no automated quoting/production pipeline). userId is optional since
 // a visitor can submit one before creating an account, in which case name/
 // contact carry how to reach them back.
+// A paid custom-design commission: the customer describes what they want and
+// pays a flat fee (feeINR/feeUSD, snapshotted per-request so a later price
+// change doesn't rewrite history) via the same manual-UPI flow orders use.
+// Once paid, an admin works up a handful of directions (iterationImages) and
+// the customer picks a favourite over WhatsApp/email; when it's finished, an
+// admin lists it as a normal Product so they can buy it in whatever
+// format/size they want — same checkout as everything else. Nothing here
+// tracks that final purchase; it's just the commission stage.
 model DesignRequest {
   id        String   @id @default(uuid())
   userId    String?
@@ -189,7 +197,17 @@ model DesignRequest {
   name      String?
   contact   String? // email, phone, or WhatsApp — however they want to be reached
   message   String   @db.Text
-  status    String   @default("NEW") // NEW | REVIEWED | DONE — plain string, not worth an enum at this size
+
+  feeINR             Int       @default(499) // paise would match Product.price's convention, but this is a flat quote shown as a whole rupee amount, not a per-unit price — keeping it a plain rupee figure avoids a confusing /100 at every call site for the one field that needs it
+  feeUSD             Float     @default(4.99)
+  paymentMethod      String    @default("UPI_MANUAL")
+  paymentConfirmed   Boolean   @default(false)
+  paymentConfirmedAt DateTime?
+
+  iterationImages String[] @default([]) // URLs an admin pastes in once the first round of directions is ready
+  iterationNote   String?  @db.Text // a short message to go with them, e.g. "here are 5 directions — reply with your favourite"
+
+  status    String   @default("NEW") // NEW | IN_PROGRESS | ITERATIONS_SENT | DONE — plain string, not worth an enum at this size
   createdAt DateTime @default(now())
 }
 
