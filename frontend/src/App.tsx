@@ -317,6 +317,9 @@ const CATEGORY_COVER_IMG = {
   Spirituality: "/buddha-cosmos.jpg",
   Animals: "/tiger-jungle.jpg",
   People: "/woman-portrait.jpg",
+  "Myth & Divinity": "/deity-statue.jpg",
+  "Culture & Rituals": "/prayer-beads.jpg",
+  Nature: "/mountain-vista.jpg",
 };
 
 // One line of flavour text per theme, shown on the catalogue's category cards.
