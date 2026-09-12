@@ -1,11 +1,18 @@
 // Generates a GST-compliant invoice PDF for one order, using the same
 // tax math the pricing sheet was already built for (see taxBreakdown in
 // pricing.js) — this just puts it on paper instead of only in code.
+const path = require("path");
 const PDFDocument = require("pdfkit");
 const { taxBreakdown } = require("./pricing");
 
 const GOLD = "#c9a24b";
 const INK = "#0a0a09";
+
+// Same portal-mark icon the site uses as its favicon/app icon — its dark
+// background is intentional (it's the mark on its own tile, not a
+// transparent cutout), so it reads as a small branded stamp rather than a
+// rendering glitch.
+const LOGO_PATH = path.join(__dirname, "..", "..", "public", "icon-512.png");
 
 function money(paise) {
   return "Rs. " + (paise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -19,6 +26,14 @@ function streamInvoice(order, res) {
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="invoice-${order.id.slice(0, 8)}.pdf"`);
   doc.pipe(res);
+
+  // Logo mark, top-right — best-effort: a missing/unreadable file here
+  // shouldn't take down invoice generation, just skip it silently.
+  try {
+    doc.image(LOGO_PATH, 495, 40, { width: 50, height: 50 });
+  } catch (err) {
+    console.error("invoice: couldn't load logo image (continuing without it):", err.message);
+  }
 
   doc.fillColor(INK).fontSize(20).font("Helvetica-Bold").text("resembles.nothing", { continued: false });
   doc.fontSize(9).font("Helvetica").fillColor("#666").text("Art Beyond Comparison");
