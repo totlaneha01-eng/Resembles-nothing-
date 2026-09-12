@@ -197,7 +197,7 @@ const QUIZ_QUESTIONS = [
 ];
 
 const TRUST_BADGES = [
-  { icon: "🔒", label: "Secure prepaid checkout", sub: "Powered by Razorpay" },
+  { icon: "🔒", label: "Secure prepaid checkout", sub: "UPI, confirmed by our team" }, // was "Powered by Razorpay" — swap back once Razorpay's account keys are connected
   { icon: "🖋️", label: "Founder-backed", sub: "Real people stand behind every order" },
   { icon: "📦", label: "Made & shipped, tracked", sub: "Updates sent straight to your DMs" },
   { icon: "🎨", label: "Curated, limited runs", sub: "Each design carries a capped edition size" },
@@ -242,7 +242,7 @@ const CATEGORY_TAGLINES = {
 };
 
 const FAQS = [
-  { q: "Why do I have to pay the full amount upfront?", a: "Every piece is made specifically for your order, so we ask for prepayment before production starts. Payments are processed securely through Razorpay — we never see or store your card details — and the founder's own Instagram is linked on this site if you'd like to see the person accountable for your order." },
+  { q: "Why do I have to pay the full amount upfront?", a: "Every piece is made specifically for your order, so we ask for prepayment before production starts. Right now that's a direct UPI payment, confirmed by our team on WhatsApp, while we finish setting up card/netbanking checkout through Razorpay — and the founder's own Instagram is linked on this site if you'd like to see the person accountable for your order." },
   { q: "Will my design ever be sold again?", a: "Each design has a set edition size — sometimes just one piece, sometimes a small run — decided when it's listed. Once every piece in that edition sells, it's retired from the catalog for good and won't be reprinted." },
   { q: "How long does an order take to arrive?", a: "Most tapestries ship within 3–5 working days and canvases within 5–8 working days, since each one is made to order. Pan-India delivery usually takes another 3–6 days depending on your pin code." },
   { q: "Can I return or exchange a piece?", a: "Because every item is made specifically for your order, we don't accept returns for change-of-mind. If a piece arrives damaged or defective, we'll replace it free of charge — just send us photos within 48 hours of delivery." },
@@ -1118,7 +1118,6 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [openFaq, setOpenFaq] = useState(null);
   const [orderPlaced, setOrderPlaced] = useState(false);
-  const [razorpayLoading, setRazorpayLoading] = useState(false);
   const [social, setSocial] = useState({ instagram: true, whatsapp: false, youtube: false });
   // Which design the wall visualizer should start with — bumped only when the
   // user explicitly clicks "Preview on My Wall" from a specific product page.
@@ -1325,17 +1324,30 @@ export default function App() {
     }
   }
 
+  // Temporary manual-UPI checkout, until Razorpay's account keys are
+  // connected — the buyer pays the QR directly, then this hands them
+  // straight to WhatsApp with their order pre-filled so we can match the
+  // payment and confirm by hand. Nothing here can auto-verify a UPI
+  // payment, so the "order placed" state below means "sent to us for
+  // confirmation," not "payment verified."
   function placeOrder(e) {
     e.preventDefault();
-    setRazorpayLoading(true);
-    // In production this calls your backend to create a Razorpay order,
-    // then opens Razorpay's hosted Checkout — simulated here client-side.
-    setTimeout(() => {
-      setRazorpayLoading(false);
-      setOrderPlaced(true);
-      setOrders((o) => [{ id: Date.now(), items: cart, total: cartTotal, date: new Date().toISOString(), status: ORDER_STEPS[0] }, ...o]);
-      setNotifs((n) => [{ id: Date.now(), title: "Payment received via Razorpay", body: `${cartCount} piece${cartCount > 1 ? "s" : ""} — updates on this order will come to your WhatsApp.`, time: "just now", read: false }, ...n]);
-    }, 1400);
+    const form = new FormData(e.target);
+    const name = form.get("name") || user?.name || "";
+    const address = form.get("address") || "";
+    const pin = form.get("pin") || "";
+
+    const itemLines = cart.map((i) => `• ${i.name} — ${FORMAT_LABELS[i.format] || i.format}, ${i.sizeLabel} × ${i.qty} — ${fmtCartItem(i)}`).join("\n");
+    const message =
+      `New order from resembles.nothing\n\n` +
+      `Name: ${name}\nAddress: ${address}\nPin: ${pin}\n\n` +
+      `Items:\n${itemLines}\n\nTotal: ${fmtCartTotal()}\n\n` +
+      `Paid via UPI QR — screenshot of the payment is attached in this chat.`;
+    window.open(`https://wa.me/918450955977?text=${encodeURIComponent(message)}`, "_blank");
+
+    setOrderPlaced(true);
+    setOrders((o) => [{ id: Date.now(), items: cart, total: cartTotal, date: new Date().toISOString(), status: ORDER_STEPS[0] }, ...o]);
+    setNotifs((n) => [{ id: Date.now(), title: "Order sent for confirmation", body: `${cartCount} piece${cartCount > 1 ? "s" : ""} — we'll confirm your payment on WhatsApp and start production.`, time: "just now", read: false }, ...n]);
   }
 
   function closeCheckout() {
@@ -2279,7 +2291,7 @@ export default function App() {
           <div style={{ maxWidth: 680, margin: "0 auto" }}>
             <Eyebrow>Terms</Eyebrow>
             <h1 style={{ fontSize: "clamp(1.9rem,3.8vw,2.8rem)", marginTop: 14, marginBottom: 24 }}>Terms of Service.</h1>
-            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 16 }}>We're finalizing the complete Terms of Service for resembles.nothing — this page will carry the full version soon. In the meantime, here's what matters most: every order is prepaid and made specifically for you; each design has a fixed edition size, and once it's sold out it won't be reprinted; payments are processed securely by Razorpay.</p>
+            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 16 }}>We're finalizing the complete Terms of Service for resembles.nothing — this page will carry the full version soon. In the meantime, here's what matters most: every order is prepaid and made specifically for you; each design has a fixed edition size, and once it's sold out it won't be reprinted; payments are currently taken by direct UPI, confirmed by our team, while we finish setting up Razorpay for cards and netbanking.</p>
             <p style={{ color: stone, fontSize: 15, lineHeight: 1.85 }}>Questions about a specific order or policy? Reach us directly on <span onClick={() => openInfoPage("contact")} style={{ color: goldHi, cursor: "pointer", textDecoration: "underline" }}>WhatsApp or Instagram</span> — happy to help.</p>
           </div>
         </section>
@@ -2290,7 +2302,7 @@ export default function App() {
           <div style={{ maxWidth: 680, margin: "0 auto" }}>
             <Eyebrow>Privacy</Eyebrow>
             <h1 style={{ fontSize: "clamp(1.9rem,3.8vw,2.8rem)", marginTop: 14, marginBottom: 24 }}>Privacy Policy.</h1>
-            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 16 }}>We're finalizing our complete Privacy Policy — this page will carry the full version soon. In short: we only collect what's needed to process your order and keep you updated (like your WhatsApp number for delivery updates and your email if you join our newsletter), we never sell your data, and payments are handled securely by Razorpay — we never see or store your card details.</p>
+            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 16 }}>We're finalizing our complete Privacy Policy — this page will carry the full version soon. In short: we only collect what's needed to process your order and keep you updated (like your WhatsApp number for delivery updates and your email if you join our newsletter), we never sell your data, and we never ask for or store your card details — payments go directly to our UPI account and are confirmed by our team.</p>
             <p style={{ color: stone, fontSize: 15, lineHeight: 1.85 }}>Want your data removed, or have a question? Reach us on <span onClick={() => openInfoPage("contact")} style={{ color: goldHi, cursor: "pointer", textDecoration: "underline" }}>WhatsApp or Instagram</span>.</p>
           </div>
         </section>
@@ -2713,7 +2725,12 @@ export default function App() {
           the header's account icon does, just reachable from here on mobile
           since that icon is hidden below 900px. */}
       <nav className="bottom-tabbar" style={{
-        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 650, background: "rgba(10,10,9,0.96)",
+        // z-index 200, not above modals/drawers (cart is 400, Modal/search are
+        // 500) — otherwise it renders on top of and blocks things like the
+        // cart drawer's Checkout button, which sits at the very bottom of
+        // the screen right where this bar lives. Their own overlay dims/
+        // covers it instead, same as it does the header and page content.
+        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200, background: "rgba(10,10,9,0.96)",
         backdropFilter: "blur(10px)", borderTop: `1px solid ${line}`, justifyContent: "space-around", padding: "9px 4px 12px"
       }}>
         {[
@@ -3126,34 +3143,36 @@ export default function App() {
               <h3 style={{ fontSize: 24, marginBottom: 4 }}>Checkout</h3>
               <p style={{ color: stone, fontSize: 13, marginBottom: 20 }}>{cartCount} item{cartCount > 1 ? "s" : ""} · {currency(cartTotal)}</p>
               <div style={{ display: "flex", gap: 8, alignItems: "center", background: ink, border: `1px solid ${line}`, padding: "10px 14px", marginBottom: 20, fontSize: 11.5, color: stone }}>
-                <span style={{ color: gold }}>🔒</span> Every order here is prepaid and made specifically for you — secured by Razorpay, India's largest payment gateway.
+                <span style={{ color: gold }}>🔒</span> Every order here is prepaid and made specifically for you.
               </div>
               <form onSubmit={placeOrder}>
-                <Field label="Full name" defaultValue={user?.name || ""} required />
-                <Field label="Delivery address" placeholder="House no, street, city" required />
-                <Field label="Pin code" placeholder="e.g. 400001" required />
+                <Field label="Full name" name="name" defaultValue={user?.name || ""} required />
+                <Field label="Delivery address" name="address" placeholder="House no, street, city" required />
+                <Field label="Pin code" name="pin" placeholder="e.g. 400001" required />
                 <div style={{ borderTop: `1px solid ${line}`, margin: "18px 0", paddingTop: 18 }}>
-                  <span style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold }}>Payment</span>
+                  <span style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold }}>Payment — Pay via UPI</span>
                 </div>
-                <div style={{ border: `1px solid ${line}`, padding: 16, marginBottom: 18, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div>
-                    <div style={{ fontSize: 13, color: cream }}>Cards, UPI, netbanking & wallets</div>
-                    <div style={{ fontSize: 10.5, color: stone, marginTop: 3 }}>Handled entirely by Razorpay's secure checkout — we never see or store your payment details.</div>
-                  </div>
-                  <div style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", fontSize: 16, color: "#3395ff", whiteSpace: "nowrap", marginLeft: 12 }}>Razorpay</div>
+                <div style={{ border: `1px solid ${line}`, padding: 18, marginBottom: 18, textAlign: "center" }}>
+                  <img src="/payment-qr.jpg" alt="UPI payment QR code" style={{ width: 190, height: 190, objectFit: "contain", margin: "0 auto 12px", background: "#f5f5f5" }} />
+                  <div style={{ fontSize: 15, color: cream, marginBottom: 2 }}>Scan and pay <strong>{currency(cartTotal)}</strong></div>
+                  <div style={{ fontSize: 11.5, color: stone }}>with any UPI app — GPay, PhonePe, Paytm, etc.</div>
+                  <div style={{ fontSize: 10.5, color: stone, marginTop: 8, wordBreak: "break-all" }}>UPI ID: keswaniveidehi-1@okicici</div>
                 </div>
-                <Btn full type="submit" disabled={razorpayLoading} style={{ marginTop: 10 }}>
-                  {razorpayLoading ? "Opening Razorpay…" : `Pay ${currency(cartTotal)} with Razorpay`}
+                <p style={{ fontSize: 11, color: stone, lineHeight: 1.7, marginBottom: 16 }}>
+                  After paying, tap below — it opens WhatsApp with your order filled in. Attach a screenshot of the payment there so we can confirm it and start production.
+                </p>
+                <Btn full type="submit" style={{ marginTop: 4 }}>
+                  I've Paid — Send Order on WhatsApp
                 </Btn>
-                <p style={{ fontSize: 10.5, color: stone, marginTop: 12, textAlign: "center" }}>Demo checkout — Razorpay's live checkout opens here once your account keys are connected.</p>
+                <p style={{ fontSize: 10.5, color: stone, marginTop: 12, textAlign: "center" }}>Temporary manual payment while we finish setting up Razorpay — every order is still confirmed by a real person before it goes into production.</p>
               </form>
             </>
           ) : (
             <div style={{ textAlign: "center", padding: "20px 0" }}>
               <div style={{ fontSize: 40, marginBottom: 14 }}>✓</div>
-              <h3 style={{ fontSize: 22, marginBottom: 8 }}>Payment received</h3>
+              <h3 style={{ fontSize: 22, marginBottom: 8 }}>Order sent</h3>
               <p style={{ color: stone, fontSize: 13, lineHeight: 1.7, marginBottom: 22 }}>
-                Thank you{user ? `, ${user.name}` : ""}. Your order is confirmed and paid via Razorpay.
+                Thank you{user ? `, ${user.name}` : ""}. If WhatsApp didn't open on its own, make sure you send us that payment screenshot — we'll confirm it and get started.
               </p>
               <div style={{ textAlign: "left", border: `1px solid ${line}`, padding: "18px 16px", marginBottom: 22 }}>
                 <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 14 }}>Your order's journey</div>
