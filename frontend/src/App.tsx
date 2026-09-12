@@ -301,6 +301,19 @@ const CATEGORIES = [
   "Zodiac & Cosmic Signs",
 ];
 
+// Real photography for category covers on the Explore/Worlds cards, in
+// place of whatever product happened to be first in that category —
+// clicking through still shows the category's actual products, this only
+// changes the card art itself. Categories not listed here keep falling
+// back to a real product photo (see the cardImg lines below).
+const CATEGORY_COVER_IMG = {
+  Botanical: "/lotus-botanical.jpg",
+  "Human Emotions": "/faces-emotion.jpg",
+  Abstract: "/abstract-splatter.jpg",
+  Celestial: "/split-moon-cosmic.jpg",
+  Places: "/ruins-column.jpg",
+};
+
 // One line of flavour text per theme, shown on the catalogue's category cards.
 const CATEGORY_TAGLINES = {
   "Myth & Divinity": "Gods, myths, and the sacred.",
@@ -2301,7 +2314,7 @@ export default function App() {
 
           <div style={{ display: "flex", gap: 20, overflowX: "auto", justifyContent: categoryOptions.length <= 6 ? "center" : "flex-start", padding: "4px 4px 14px" }} className="cat-card-row">
             {categoryOptions.filter((c) => c !== "All").map((c) => {
-              const cardImg = allProducts.find((p) => p.category === c)?.images?.[0] || PLACEHOLDER_IMG;
+              const cardImg = CATEGORY_COVER_IMG[c] || allProducts.find((p) => p.category === c)?.images?.[0] || PLACEHOLDER_IMG;
               const active = c === category;
               return (
                 <div key={c} className="cat-card" onClick={() => setCategory(active ? "All" : c)} style={{ flex: "0 0 auto", width: 148, cursor: "pointer" }}>
@@ -2570,7 +2583,7 @@ export default function App() {
 
               <div style={{ display: "flex", gap: 20, overflowX: "auto", padding: "4px 4px 16px" }} className="cat-card-row">
                 {categoryOptions.filter((c) => c !== "All").map((c) => {
-                  const cardImg = allProducts.find((p) => p.category === c)?.images?.[0] || PLACEHOLDER_IMG;
+                  const cardImg = CATEGORY_COVER_IMG[c] || allProducts.find((p) => p.category === c)?.images?.[0] || PLACEHOLDER_IMG;
                   return (
                     <div key={c} className="pill-card" onClick={() => { setCategory(c); backToShop(); requestAnimationFrame(() => document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" })); }} style={{ flex: "0 0 auto", width: 138, cursor: "pointer" }}>
                       <div className="pill-card-img" style={{ width: "100%", height: 220, borderRadius: 999, overflow: "hidden", border: `1px solid ${line}` }}>
@@ -2614,7 +2627,7 @@ export default function App() {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 28 }}>
               {categoryOptions.filter((c) => c !== "All").map((c) => {
-                const cardImg = allProducts.find((p) => p.category === c)?.images?.[0] || PLACEHOLDER_IMG;
+                const cardImg = CATEGORY_COVER_IMG[c] || allProducts.find((p) => p.category === c)?.images?.[0] || PLACEHOLDER_IMG;
                 const count = allProducts.filter((p) => p.category === c).length;
                 return (
                   <div key={c} onClick={() => { setCategory(c); backToShop(); requestAnimationFrame(() => document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" })); }} style={{ cursor: "pointer" }} className="pill-card">
