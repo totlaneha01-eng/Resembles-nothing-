@@ -52,8 +52,8 @@ const IMG = {
 };
 
 
-const FABRIC_FEATURES = ["Premium satin fabric", "Fade-resistant HD print", "Perfect stitching", "Ready to hang", "Carefully packed", "Pan-India delivery"];
-const CANVAS_FEATURES = ["Premium 380 GSM canvas", "Fade-resistant ink", "Stretched & framed, ready to hang", "Made with intent, not mass produced", "Carefully packed", "Pan-India delivery"];
+const FABRIC_FEATURES = ["Premium satin fabric", "Fade-resistant HD print", "Perfect stitching", "Ready to hang", "Carefully packed", "Worldwide delivery"];
+const CANVAS_FEATURES = ["Premium 380 GSM canvas", "Fade-resistant ink", "Stretched & framed, ready to hang", "Made with intent, not mass produced", "Carefully packed", "Worldwide delivery"];
 
 // Real India size/price tiers, taken directly from your price sheets.
 // USD tiers are your actual USA retail prices, not a currency conversion —
@@ -203,11 +203,9 @@ const TRUST_BADGES = [
   { icon: "🎨", label: "Curated, limited runs", sub: "Each design carries a capped edition size" },
 ];
 
-// Compact icon-only strip above the footer newsletter — "Worldwide Shipping"
-// from the reference mockup was dropped in favor of "Pan-India Shipping"
-// since we don't actually ship internationally yet (see the Shipping page).
+// Compact icon-only strip above the footer newsletter.
 const FOOTER_TRUST_ICONS = [
-  { icon: "🌐", label: "Pan-India Shipping" },
+  { icon: "🌐", label: "Worldwide Shipping" },
   { icon: "💎", label: "Secure Payments" },
   { icon: "✦", label: "Curated One-of-One" },
   { icon: "∞", label: "Art Lives Forever" },
@@ -244,12 +242,12 @@ const CATEGORY_TAGLINES = {
 const FAQS = [
   { q: "Why do I have to pay the full amount upfront?", a: "Every piece is made specifically for your order, so we ask for prepayment before production starts. Right now that's a direct UPI payment, confirmed by our team on WhatsApp, while we finish setting up card/netbanking checkout through Razorpay — and the founder's own Instagram is linked on this site if you'd like to see the person accountable for your order." },
   { q: "Will my design ever be sold again?", a: "Each design has a set edition size — sometimes just one piece, sometimes a small run — decided when it's listed. Once every piece in that edition sells, it's retired from the catalog for good and won't be reprinted." },
-  { q: "How long does an order take to arrive?", a: "Most tapestries ship within 3–5 working days and canvases within 5–8 working days, since each one is made to order. Pan-India delivery usually takes another 3–6 days depending on your pin code." },
+  { q: "How long does an order take to arrive?", a: "Most tapestries ship within 3–5 working days and canvases within 5–8 working days, since each one is made to order. From there, delivery usually takes another 3–6 days within India, or roughly 10–20 working days internationally depending on your country." },
   { q: "Can I return or exchange a piece?", a: "Because every item is made specifically for your order, we don't accept returns for change-of-mind. If a piece arrives damaged or defective, we'll replace it free of charge — just send us photos within 48 hours of delivery." },
   { q: "What sizes do tapestries come in?", a: "Signature (70 × 100 cm), Grand (100 × 150 cm), and Monument (130 × 180 cm) — see the full pricing table below for what fits your space." },
   { q: "Can you turn my own photo or idea into a design?", a: "Yes — DM us your concept, a reference image, or even a photo you'd like reimagined, and our team will quote a custom piece for you." },
   { q: "How does the wall preview tool work?", a: "Upload a photo of your actual wall, pick any design from the catalog, and drag / resize it right on your photo — so you know exactly how it'll look before you order." },
-  { q: "Do you deliver outside India?", a: "Right now we only ship pan-India. International shipping is something we're actively working on — follow our Instagram for updates." },
+  { q: "Do you deliver outside India?", a: "Yes — we ship worldwide. International orders may take a little longer and any customs or import duties your country charges are the buyer's responsibility, but we pack and ship every piece the same way regardless of where it's headed." },
 ];
 
 const NOTIFS_SEED = [
@@ -2255,7 +2253,7 @@ export default function App() {
           <div style={{ maxWidth: 680, margin: "0 auto" }}>
             <Eyebrow>About</Eyebrow>
             <h1 style={{ fontSize: "clamp(1.9rem,3.8vw,2.8rem)", marginTop: 14, marginBottom: 24 }}>Portals to different worlds.</h1>
-            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 16 }}>resembles.nothing makes one-of-one and small-edition wall art — tapestries, canvas prints, and split canvas — designed to feel like nothing else already on your wall. Every piece is prepaid, made to order by our small team, and shipped pan-India.</p>
+            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 16 }}>resembles.nothing makes one-of-one and small-edition wall art — tapestries, canvas prints, and split canvas — designed to feel like nothing else already on your wall. Every piece is prepaid, made to order by our small team, and shipped worldwide.</p>
             <p style={{ color: stone, fontSize: 15, lineHeight: 1.85 }}>We're a two-person studio — Neha Totla and Laksh Keswani — and we put our own names and Instagram on this brand because we want you to know there are real people accountable for what shows up at your door. No middlemen, no dropshipping.</p>
           </div>
         </section>
@@ -2266,8 +2264,8 @@ export default function App() {
           <div style={{ maxWidth: 680, margin: "0 auto" }}>
             <Eyebrow>Shipping</Eyebrow>
             <h1 style={{ fontSize: "clamp(1.9rem,3.8vw,2.8rem)", marginTop: 14, marginBottom: 24 }}>How your piece gets to you.</h1>
-            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 16 }}>Most tapestries ship within 3–5 working days and canvases within 5–8 working days, since each one is made to order. Pan-India delivery usually takes another 3–6 days depending on your pin code.</p>
-            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85 }}>Right now we only ship pan-India. International shipping is something we're actively working on — follow our Instagram for updates.</p>
+            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 16 }}>Most tapestries ship within 3–5 working days and canvases within 5–8 working days, since each one is made to order. From there, delivery usually takes another 3–6 days within India, or roughly 10–20 working days internationally depending on your country.</p>
+            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85 }}>We ship worldwide — anywhere a courier delivers, we'll send a piece. Any customs or import duties charged by your country are the buyer's responsibility, but the piece is packed and handled exactly the same either way.</p>
           </div>
         </section>
       )}
@@ -2402,7 +2400,7 @@ export default function App() {
                     ["Finish", effectiveFormat === "TAPESTRY" ? "Ready to hang" : "Stretched & framed"],
                     ["Production", "Made to order"],
                     ["Dispatch", effectiveFormat === "TAPESTRY" ? "3–5 business days" : "5–8 business days"],
-                    ["Delivery", "Pan-India"],
+                    ["Delivery", "Worldwide"],
                   ].map(([label, value], i) => (
                     <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", borderTop: i === 0 ? "none" : `1px solid ${line}` }}>
                       <span style={{ fontSize: 12, color: stone }}>{label}</span>
