@@ -2428,6 +2428,16 @@ export default function App() {
             <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 16 }}>resembles.nothing makes one-of-one and small-edition wall art — tapestries, canvas prints, and split canvas — designed to feel like nothing else already on your wall. Every piece is prepaid, made to order by our small team, and shipped worldwide.</p>
             <p style={{ color: stone, fontSize: 15, lineHeight: 1.85 }}>We're a two-person studio — Neha Totla and Laksh Keswani — and we put our own names and Instagram on this brand because we want you to know there are real people accountable for what shows up at your door. No middlemen, no dropshipping.</p>
 
+            {/* Brand Story */}
+            <div style={{ marginTop: 56, paddingTop: 40, borderTop: `1px solid ${line}` }}>
+              <Eyebrow>Brand Story</Eyebrow>
+              <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.5rem,2.8vw,2rem)", marginTop: 12, marginBottom: 18 }}>The meaning behind resembles.nothing.</h2>
+              <p style={{ color: stone, fontSize: 14.5, lineHeight: 1.85, marginBottom: 14 }}>It was born from a simple restlessness — a feeling that the world we live in often looks the same. The same walls. The same prints. The same stories.</p>
+              <p style={{ color: stone, fontSize: 14.5, lineHeight: 1.85, marginBottom: 14 }}>We wanted more. More colour. More meaning. More worlds. So we turned to art — to tapestries and canvases that don't just decorate a space, but transform it. Each design is a portal: a glimpse into a different world, a different mood, a different version of you.</p>
+              <p style={{ color: stone, fontSize: 14.5, lineHeight: 1.85, marginBottom: 14 }}>No design is ever repeated. Once a piece is yours, it's gone forever — because art should be personal, rare, and alive, just like the people who choose it.</p>
+              <p style={{ color: goldHi, fontSize: 14.5, fontStyle: "italic", lineHeight: 1.7 }}>Resembles Nothing means it cannot be compared, boxed, or defined. Art for another you.</p>
+            </div>
+
             {/* Our Vision */}
             <div style={{ marginTop: 56, paddingTop: 40, borderTop: `1px solid ${line}` }}>
               <Eyebrow>Our Vision</Eyebrow>
@@ -2476,6 +2486,17 @@ export default function App() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Brand Manifesto — closing statement, deliberately short since
+                Vision/Mission/Philosophy above already cover most of this
+                ground; the point here is the ones that don't repeat, like
+                shipping to a genuinely global, borderless home. */}
+            <div style={{ marginTop: 48, paddingTop: 40, borderTop: `1px solid ${line}`, textAlign: "center" }}>
+              <Eyebrow>Brand Manifesto</Eyebrow>
+              <p style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", fontSize: "clamp(1.3rem,2.4vw,1.7rem)", color: cream, lineHeight: 1.5, margin: "20px auto 0", maxWidth: 560 }}>
+                One-of-one designs. Portals to other worlds. From our studio to walls everywhere — a global, borderless home for dreamers, collectors, and free spirits.
+              </p>
             </div>
           </div>
         </section>
