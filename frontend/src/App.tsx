@@ -367,14 +367,27 @@ function currency(n) {
 
 // The homepage hero — 3 full-bleed banners with their own headline/CTA
 // baked into the image, replacing the old 3 arbitrarily-picked product
-// photos. Each slide's `target` says where the whole banner (the baked-in
-// button included, since there's no way to make just that pixel region
-// clickable) links to — resolved in the App component, where the actual
-// nav functions/state live.
+// photos. `target` says where each banner's drawn button links to
+// (resolved in the App component, where the actual nav functions/state
+// live) and `btn` is that button's own bounding box, as a percentage of
+// the image (left/top/width/height) — measured directly off each source
+// file's pixels, since object-fit:cover at this exact aspect ratio scales
+// the whole image uniformly, so a percentage-based overlay tracks the
+// drawn button correctly at any screen width. Only the button itself is
+// clickable, not the rest of the slide.
 const HERO_SLIDES = [
-  { img: "/hero-no-reprints.jpg", alt: "No reprints — one design, only done once. Explore the collection.", target: "shop" },
-  { img: "/hero-upload-earn.jpg", alt: "Upload your designs and earn — join our artist community.", target: "sell" },
-  { img: "/hero-preview-wall.jpg", alt: "See what it looks like on your wall — explore.", target: "visualizer" },
+  {
+    img: "/hero-no-reprints.jpg", alt: "No reprints — one design, only done once. Explore the collection.", target: "shop",
+    btn: { left: 15.9, top: 56.6, width: 29.4, height: 7.8 },
+  },
+  {
+    img: "/hero-upload-earn.jpg", alt: "Upload your designs and earn — join our artist community.", target: "sell",
+    btn: { left: 14.7, top: 45.6, width: 30.1, height: 6.2 },
+  },
+  {
+    img: "/hero-preview-wall.jpg", alt: "See what it looks like on your wall — explore.", target: "visualizer",
+    btn: { left: 65.3, top: 78.1, width: 19.0, height: 8.7 },
+  },
 ];
 
 // Shown when a product's real image hasn't been uploaded yet (e.g. the old
@@ -2289,13 +2302,20 @@ export default function App() {
       {/* HERO — a rotating carousel of 3 full-bleed banners, each with its
           own headline/CTA baked into the image. Replaced the old 3
           arbitrarily-picked product photos (see HERO_SLIDES/goToHeroSlideTarget
-          above). The whole slide is the click target, since there's no
-          reliable way to hit-test just the drawn button inside the image. */}
+          above). Only the drawn button itself is clickable — a
+          precisely-positioned transparent overlay sized to HERO_SLIDES[i].btn,
+          not the whole slide. */}
       <section style={{ position: "relative", borderBottom: `1px solid ${line}`, overflow: "hidden" }}>
-        <div
-          onClick={() => goToHeroSlideTarget(HERO_SLIDES[heroSlide].target)}
-          style={{ position: "relative", width: "100%", aspectRatio: "1448/1086", maxHeight: "78vh", overflow: "hidden", cursor: "pointer" }}
-        >
+        {/* No max-height here on purpose: HERO_SLIDES[i].btn is a % of the
+            source image's own pixels, which only lines up with the drawn
+            button when this container's rendered box keeps the exact same
+            1448:1086 ratio as the image. Capping height (e.g. via vh) lets
+            width and height drift out of that ratio at wide/short
+            viewports, and object-fit:cover then crops differently than the
+            math assumes — the button overlay silently stops lining up with
+            the actual button. Tall on very wide/short screens is the
+            trade-off; that's fine, correctness here isn't. */}
+        <div style={{ position: "relative", width: "100%", aspectRatio: "1448/1086", overflow: "hidden" }}>
           {HERO_SLIDES.map((slide, i) => (
             <img
               key={slide.img} src={slide.img} alt={slide.alt}
@@ -2305,6 +2325,16 @@ export default function App() {
               }}
             />
           ))}
+          <button
+            onClick={() => goToHeroSlideTarget(HERO_SLIDES[heroSlide].target)}
+            aria-label={HERO_SLIDES[heroSlide].alt}
+            style={{
+              position: "absolute",
+              left: `${HERO_SLIDES[heroSlide].btn.left}%`, top: `${HERO_SLIDES[heroSlide].btn.top}%`,
+              width: `${HERO_SLIDES[heroSlide].btn.width}%`, height: `${HERO_SLIDES[heroSlide].btn.height}%`,
+              background: "transparent", border: "none", cursor: "pointer", padding: 0,
+            }}
+          />
         </div>
         <div style={{ display: "flex", justifyContent: "center", gap: 8, padding: "16px 0 12px" }}>
           {HERO_SLIDES.map((slide, i) => (
