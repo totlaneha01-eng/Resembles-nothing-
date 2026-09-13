@@ -2151,7 +2151,6 @@ export default function App() {
           .explore-hero-grid { grid-template-columns: 1fr !important; }
           .prod-grid { grid-template-columns: repeat(3,1fr) !important; gap: 22px 18px !important; }
           .viz-grid { grid-template-columns: 1fr !important; }
-          .tier-grid { grid-template-columns: 1fr !important; }
           .founder-grid { grid-template-columns: 1fr !important; text-align: center; }
           .trust-grid, .trust-strip-grid { grid-template-columns: repeat(2,1fr) !important; }
           .footer-grid { grid-template-columns: 1fr !important; text-align: center; }
@@ -2358,31 +2357,6 @@ export default function App() {
                 <div style={{ width: 84, height: 104, border: `1px solid ${line}`, overflow: "hidden" }}>
                   <img src={p.images[2]} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* WHY RESEMBLES NOTHING */}
-      <section style={{ padding: "64px 24px", borderBottom: `1px solid ${line}` }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 44 }}>
-            <Eyebrow>Why Resembles Nothing?</Eyebrow>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 30 }} className="tier-grid">
-            {[
-              { n: "01", t: "Made Once", d: "Every design exists as a single physical piece — not a print run, not a limited edition of 500.", img: "/hero-upload-earn.jpg" },
-              { n: "02", t: "No Reprints", d: "Once it's sold, it disappears from the collection for good. What you own can't be bought by anyone else, ever.", img: "/hero-no-reprints.jpg" },
-              { n: "03", t: "Made for Your Wall", d: "Preview any piece on a photo of your own space, true to scale, before you commit to it.", img: "/hero-preview-wall.jpg" },
-            ].map((f) => (
-              <div key={f.n} style={{ textAlign: "center" }}>
-                <div style={{ aspectRatio: "4/3", overflow: "hidden", border: `1px solid ${line}`, marginBottom: 18 }}>
-                  <img src={f.img} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                </div>
-                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", color: gold, fontSize: 15, marginBottom: 10 }}>{f.n}</div>
-                <h3 style={{ fontSize: 20, marginBottom: 10 }}>{f.t}</h3>
-                <p style={{ fontSize: 13, color: stone, lineHeight: 1.7 }}>{f.d}</p>
               </div>
             ))}
           </div>
