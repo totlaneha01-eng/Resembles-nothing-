@@ -365,6 +365,18 @@ function currency(n) {
   return "₹" + n.toLocaleString("en-IN");
 }
 
+// The homepage hero — 3 full-bleed banners with their own headline/CTA
+// baked into the image, replacing the old 3 arbitrarily-picked product
+// photos. Each slide's `target` says where the whole banner (the baked-in
+// button included, since there's no way to make just that pixel region
+// clickable) links to — resolved in the App component, where the actual
+// nav functions/state live.
+const HERO_SLIDES = [
+  { img: "/hero-no-reprints.jpg", alt: "No reprints — one design, only done once. Explore the collection.", target: "shop" },
+  { img: "/hero-upload-earn.jpg", alt: "Upload your designs and earn — join our artist community.", target: "sell" },
+  { img: "/hero-preview-wall.jpg", alt: "See what it looks like on your wall — explore.", target: "visualizer" },
+];
+
 // Shown when a product's real image hasn't been uploaded yet (e.g. the old
 // seed data, which points at /uploads/ paths that were never real files).
 const PLACEHOLDER_IMG =
@@ -1195,6 +1207,7 @@ function OrdersPanel({ gold, goldHi, cream, stone, line, ink2 }) {
 
 export default function App() {
   const [page, setPage] = useState("shop"); // "shop" | "product" | "artist" | "admin" | "explore" | "worlds" | "saved" | "about" | "shipping" | "contact" | "terms" | "privacy"
+  const [heroSlide, setHeroSlide] = useState(0); // which of HERO_SLIDES is showing
   const [viewArtist, setViewArtist] = useState(null);
   const [orders, setOrders] = useState([]);
   const [viewProduct, setViewProduct] = useState(null);
@@ -1976,6 +1989,23 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dbProducts]);
 
+  // Advances the hero carousel every 6s — only while it's actually
+  // visible, so this isn't quietly ticking away on every other page too.
+  useEffect(() => {
+    if (page !== "shop") return;
+    const id = setInterval(() => setHeroSlide((s) => (s + 1) % HERO_SLIDES.length), 6000);
+    return () => clearInterval(id);
+  }, [page]);
+
+  // Where each hero slide's baked-in button actually goes — the whole
+  // slide is the click target, since there's no reliable way to make just
+  // that one drawn button clickable across every screen size.
+  function goToHeroSlideTarget(target) {
+    if (target === "shop") document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" });
+    else if (target === "visualizer") document.getElementById("visualizer")?.scrollIntoView({ behavior: "smooth" });
+    else if (target === "sell") { if (user) setShowProfile(true); else setShowLogin(true); }
+  }
+
   const ink = "#0a0a09", ink2 = "#141311", gold = "#c9a24b", goldHi = "#e9cc84",
     cream = "#efe7d6", stone = "#948c78", line = "rgba(201,162,75,0.28)";
 
@@ -2105,18 +2135,7 @@ export default function App() {
              on any phone. .mobile-nav-btn + the dropdown it toggles is
              that replacement. */
           .mobile-nav-btn { display: flex !important; }
-          .hero-grid, .explore-hero-grid { grid-template-columns: 1fr !important; }
-          /* Below the 2-column breakpoint the 3-photo tilted collage takes
-             the full row width instead of ~45% of it, which — even once
-             correctly sized to not overlap the badges above (previously
-             fixed here with min-height: 85vw) — meant three large photos
-             stacked with wide gaps between them, dominating most of the
-             screen before any real content appeared. That's a lot for a
-             phone; drop to a single, moderately-sized centered photo
-             instead of trying to fit the full desktop collage. */
-          .hero-visual { min-height: 0 !important; margin: 8px 0 4px; }
-          .hero-photo-back { display: none !important; }
-          .hero-photo-front { width: 62% !important; }
+          .explore-hero-grid { grid-template-columns: 1fr !important; }
           .prod-grid { grid-template-columns: repeat(3,1fr) !important; gap: 22px 18px !important; }
           .viz-grid { grid-template-columns: 1fr !important; }
           .tier-grid { grid-template-columns: 1fr !important; }
@@ -2267,48 +2286,38 @@ export default function App() {
 
       {page === "shop" && (
       <>
-      {/* HERO */}
-      <section style={{ position: "relative", padding: "84px 24px 70px", borderBottom: `1px solid ${line}`, overflow: "hidden" }}>
-        <div style={{
-          position: "absolute", inset: 0, pointerEvents: "none",
-          background: "radial-gradient(ellipse 60% 55% at 78% 20%, rgba(201,162,75,0.10), transparent 65%)"
-        }} />
-        <div style={{ maxWidth: 1180, margin: "0 auto", display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 56, alignItems: "center", position: "relative" }} className="hero-grid">
-          <div className="fade-up">
-            <Eyebrow>Art Beyond Comparison</Eyebrow>
-            <h1 style={{ fontSize: "clamp(2.4rem,4.8vw,3.9rem)", lineHeight: 1.04, margin: "20px 0", color: cream }}>
-              One design. <span style={{ color: gold, fontStyle: "italic" }}>One piece. Never repeated.</span>
-            </h1>
-            <p style={{ color: stone, fontSize: 15.5, lineHeight: 1.75, maxWidth: 460 }}>
-              Original art, made once for one wall.
-            </p>
-            <div style={{ display: "flex", gap: 14, marginTop: 32, flexWrap: "wrap" }}>
-              <Btn onClick={() => document.getElementById("shop").scrollIntoView({ behavior: "smooth" })}>Shop the Collection</Btn>
-              <Btn variant="ghost" onClick={() => document.getElementById("visualizer").scrollIntoView({ behavior: "smooth" })}>See It On Your Wall</Btn>
-            </div>
-            <div style={{ display: "flex", gap: 10, marginTop: 30, flexWrap: "wrap" }}>
-              {["🔒 Secure prepaid checkout", "🖋️ Founder-backed brand", "🎨 Curated, limited runs"].map((t) => (
-                <span key={t} style={{ fontSize: 11, color: stone, border: `1px solid ${line}`, padding: "7px 12px" }}>{t}</span>
-              ))}
-            </div>
-          </div>
-          <div style={{ display: "flex", justifyContent: "center", position: "relative", minHeight: 420 }} className="fade-up hero-visual">
-            <div className="hero-photo-back" style={{
-              position: "absolute", width: "58%", aspectRatio: "3/4", border: `1px solid ${line}`,
-              top: 0, right: "6%", transform: "rotate(4deg)", boxShadow: "0 30px 60px rgba(0,0,0,0.5)", overflow: "hidden", zIndex: 1
-            }}>
-              <img src={IMG.krishna_e} alt="Dusk Raga triptych" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            </div>
-            <div className="hero-photo-back" style={{
-              position: "absolute", width: "55%", aspectRatio: "3/4", border: `1px solid ${line}`,
-              bottom: 0, left: "4%", transform: "rotate(-5deg)", boxShadow: "0 30px 60px rgba(0,0,0,0.5)", overflow: "hidden", zIndex: 2
-            }}>
-              <img src={IMG.roses_e} alt="Amateur Flirt canvas" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            </div>
-            <div className="hero-photo-front" style={{ width: "48%", border: `1px solid ${gold}`, padding: 10, background: ink2, boxShadow: "0 44px 90px rgba(0,0,0,0.6)", position: "relative", zIndex: 3, aspectRatio: "3/4", overflow: "hidden" }}>
-              <img src={IMG.tiger_e} alt="Royal Sovereign tapestry" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            </div>
-          </div>
+      {/* HERO — a rotating carousel of 3 full-bleed banners, each with its
+          own headline/CTA baked into the image. Replaced the old 3
+          arbitrarily-picked product photos (see HERO_SLIDES/goToHeroSlideTarget
+          above). The whole slide is the click target, since there's no
+          reliable way to hit-test just the drawn button inside the image. */}
+      <section style={{ position: "relative", borderBottom: `1px solid ${line}`, overflow: "hidden" }}>
+        <div
+          onClick={() => goToHeroSlideTarget(HERO_SLIDES[heroSlide].target)}
+          style={{ position: "relative", width: "100%", aspectRatio: "1448/1086", maxHeight: "78vh", overflow: "hidden", cursor: "pointer" }}
+        >
+          {HERO_SLIDES.map((slide, i) => (
+            <img
+              key={slide.img} src={slide.img} alt={slide.alt}
+              style={{
+                position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
+                opacity: i === heroSlide ? 1 : 0, transition: "opacity 900ms ease", pointerEvents: "none",
+              }}
+            />
+          ))}
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", gap: 8, padding: "16px 0 12px" }}>
+          {HERO_SLIDES.map((slide, i) => (
+            <button
+              key={slide.img} onClick={() => setHeroSlide(i)} aria-label={`Show slide ${i + 1}`}
+              style={{ width: 8, height: 8, padding: 0, borderRadius: "50%", border: "none", cursor: "pointer", background: i === heroSlide ? gold : line }}
+            />
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", padding: "0 24px 28px", flexWrap: "wrap" }}>
+          {["🔒 Secure prepaid checkout", "🖋️ Founder-backed brand", "🎨 Curated, limited runs"].map((t) => (
+            <span key={t} style={{ fontSize: 11, color: stone, border: `1px solid ${line}`, padding: "7px 12px" }}>{t}</span>
+          ))}
         </div>
 
         {/* Live strip of real designs, right in the first screen */}
