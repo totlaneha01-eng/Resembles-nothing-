@@ -443,8 +443,8 @@ function normalizeDbProduct(p) {
   };
 }
 
-function Eyebrow({ children }) {
-  return <span className="eyebrow">{children}</span>;
+function Eyebrow({ children, style }) {
+  return <span className="eyebrow" style={style}>{children}</span>;
 }
 
 function Logo({ size = 34 }) {
@@ -2432,8 +2432,7 @@ export default function App() {
       <section id="shop" style={{ padding: "80px 24px" }}>
         <div style={{ maxWidth: 1180, margin: "0 auto" }}>
           <div style={{ textAlign: "center", maxWidth: 600, margin: "0 auto 44px" }}>
-            <Eyebrow>The Catalogue</Eyebrow>
-            <h2 style={{ fontSize: "clamp(1.8rem,3.4vw,2.6rem)", marginTop: 14 }}>Nine pieces. Zero repeats.</h2>
+            <Eyebrow style={{ fontSize: 17 }}>The Catalogue</Eyebrow>
           </div>
 
           {category !== "All" && (
