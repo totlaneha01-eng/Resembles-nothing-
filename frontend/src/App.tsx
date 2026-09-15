@@ -616,7 +616,7 @@ function ProductCard({ p, gold, goldHi, cream, stone, priceFmt, openProduct, isS
         >{isSaved ? "♥" : "♡"}</button>
       )}
       <div style={{ aspectRatio: "3/4", overflow: "hidden" }}>
-        <img src={p.images[0]} alt={p.name} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <img src={p.images[0]} alt={p.name} loading="lazy" decoding="async" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       </div>
       <div style={{ paddingTop: 12 }}>
         <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500, fontSize: 16, color: cream, margin: 0, lineHeight: 1.3 }}>{p.name}</h3>
@@ -775,7 +775,7 @@ function WallVisualizer({ catalog, initialDesign, addToCart, tokens }) {
                 <div key={p.id} onClick={() => setSelectedDesign(p)} style={{
                   cursor: "pointer", border: `2px solid ${selectedDesign.id === p.id ? gold : "transparent"}`, position: "relative"
                 }}>
-                  <img src={p.images[2]} alt={p.name} style={{ width: "100%", aspectRatio: "3/4", objectFit: "cover", display: "block" }} />
+                  <img src={p.images[2]} alt={p.name} loading="lazy" decoding="async" style={{ width: "100%", aspectRatio: "3/4", objectFit: "cover", display: "block" }} />
                   <div style={{ fontSize: 10, color: stone, marginTop: 4, textAlign: "center" }}>{p.name}</div>
                 </div>
               ))}
@@ -1890,6 +1890,22 @@ export default function App() {
     if (window.location.pathname !== path) window.history.pushState(null, "", path);
   }
 
+  // Plain window.scrollTo(0,0) can lose the fight against an in-flight
+  // momentum/inertial scroll on a touch device — the finger lifts mid-swipe,
+  // the click fires, we scroll to 0, and the browser's own scroll animation
+  // (already in motion) overrides it a moment later, landing wherever the
+  // swipe would have anyway. Re-asserting it a couple frames later (after
+  // that motion has had a chance to settle, and after React's actually
+  // swapped in the new page's DOM) is what makes "open a design" reliably
+  // land at the top of it instead of wherever the shop grid was scrolled to.
+  function scrollToTopRobust() {
+    window.scrollTo(0, 0);
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      requestAnimationFrame(() => window.scrollTo(0, 0));
+    });
+  }
+
   function openProduct(p) {
     setViewProduct(p);
     setActiveImg(0);
@@ -1897,13 +1913,26 @@ export default function App() {
     setSelectedFormat(firstFormat);
     setSelectedSize(defaultSizeFor(withFormat(p, firstFormat)));
     setPage("product");
-    window.scrollTo(0, 0);
+    scrollToTopRobust();
     navigate(`/design/${p.id}`);
   }
   function backToShop() {
     setPage("shop");
     window.scrollTo(0, 0);
     navigate("/");
+  }
+  // Same as backToShop(), but restores the shop grid's last scroll position
+  // (see the scroll-tracking effect below) instead of resetting to top —
+  // for the "← Back to shop" button and the browser's own back button, so
+  // leaving a design and coming back doesn't lose your place in a long
+  // scroll. Plain backToShop() (nav-bar "Shop" link, jumping to a category
+  // from another page, etc.) is a deliberate fresh start and keeps
+  // resetting to top.
+  function backToShopRestoringScroll() {
+    setPage("shop");
+    navigate("/");
+    const y = shopScrollY.current;
+    requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)));
   }
   // Switches to the shop page (if not already there) and scrolls to one of
   // its in-page sections (#shop, #faq, #visualizer) once it's actually
@@ -1921,27 +1950,27 @@ export default function App() {
   function openArtist(name) {
     setViewArtist(name);
     setPage("artist");
-    window.scrollTo(0, 0);
+    scrollToTopRobust();
     navigate(`/artist/${slugify(name)}`);
   }
   function openExplore() {
     setPage("explore");
-    window.scrollTo(0, 0);
+    scrollToTopRobust();
     navigate(PAGE_PATH.explore);
   }
   function openWorlds() {
     setPage("worlds");
-    window.scrollTo(0, 0);
+    scrollToTopRobust();
     navigate(PAGE_PATH.worlds);
   }
   function openSaved() {
     setPage("saved");
-    window.scrollTo(0, 0);
+    scrollToTopRobust();
     navigate(PAGE_PATH.saved);
   }
   function openInfoPage(name) {
     setPage(name);
-    window.scrollTo(0, 0);
+    scrollToTopRobust();
     navigate(PAGE_PATH[name] || "/");
   }
 
@@ -1954,7 +1983,15 @@ export default function App() {
     const pageEntry = Object.entries(PAGE_PATH).find(([, p]) => p === path);
     if (pageEntry) {
       const [name] = pageEntry;
-      if (name === "shop") { setPage("shop"); window.scrollTo(0, 0); }
+      if (name === "shop") {
+        // Reached via the browser's own back/forward (popstate) — restore
+        // where the shop grid was scrolled to, same as the "← Back to shop"
+        // button, so hitting the phone's back gesture from a design doesn't
+        // dump you back at the top of the whole catalogue.
+        setPage("shop");
+        const y = shopScrollY.current;
+        requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)));
+      }
       else if (name === "explore") openExplore();
       else if (name === "worlds") openWorlds();
       else if (name === "saved") openSaved();
@@ -1975,6 +2012,13 @@ export default function App() {
     }
     return false; // unrecognized path — leave the default "shop" state as-is
   }
+
+  // Where the shop grid was last scrolled to — kept up to date continuously
+  // (see the effect below) so backToShopRestoringScroll() and resolvePath's
+  // "shop" branch can put it back instead of resetting to top. A ref, not
+  // state: it changes on every scroll tick and none of that should ever
+  // trigger a re-render.
+  const shopScrollY = useRef(0);
 
   // Deep links: whatever URL someone actually landed on (shared link, a
   // bookmark, a search result) — not just "/". A /design/:slug or
@@ -2001,6 +2045,16 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPopState);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dbProducts]);
+
+  // Keeps shopScrollY current while the shop page is actually on screen —
+  // this is what lets "← Back to shop" and the browser's back button put
+  // you back where you were instead of at the top of the catalogue.
+  useEffect(() => {
+    if (page !== "shop") return;
+    function onScroll() { shopScrollY.current = window.scrollY; }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [page]);
 
   // Advances the hero carousel every 6s — only while it's actually
   // visible, so this isn't quietly ticking away on every other page too.
@@ -2355,7 +2409,7 @@ export default function App() {
             {[...CATALOG, ...CATALOG].map((p, i) => (
               <div key={p.id + i} onClick={() => openProduct(p)} style={{ flexShrink: 0, width: 84, cursor: "pointer" }}>
                 <div style={{ width: 84, height: 104, border: `1px solid ${line}`, overflow: "hidden" }}>
-                  <img src={p.images[2]} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img src={p.images[2]} alt={p.name} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
               </div>
             ))}
@@ -2401,7 +2455,7 @@ export default function App() {
                     border: `1px solid ${active ? gold : line}`, opacity: active ? 1 : 0.88
                   }}>
                     <img
-                      src={cardImg} alt={c}
+                      src={cardImg} alt={c} loading="lazy" decoding="async"
                       onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }}
                       style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     />
@@ -2665,7 +2719,7 @@ export default function App() {
                   return (
                     <div key={c} className="pill-card" onClick={() => { setCategory(c); backToShop(); requestAnimationFrame(() => document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" })); }} style={{ flex: "0 0 auto", width: 138, cursor: "pointer" }}>
                       <div className="pill-card-img" style={{ width: "100%", height: 220, borderRadius: 999, overflow: "hidden", border: `1px solid ${line}` }}>
-                        <img src={cardImg} alt={c} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <img src={cardImg} alt={c} loading="lazy" decoding="async" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       </div>
                       <div style={{ textAlign: "center", marginTop: 12 }}>
                         <div style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: cream }}>{c}</div>
@@ -2710,7 +2764,7 @@ export default function App() {
                 return (
                   <div key={c} onClick={() => { setCategory(c); backToShop(); requestAnimationFrame(() => document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" })); }} style={{ cursor: "pointer" }} className="pill-card">
                     <div className="pill-card-img" style={{ width: "100%", aspectRatio: "3/4.4", borderRadius: 999, overflow: "hidden", border: `1px solid ${line}` }}>
-                      <img src={cardImg} alt={c} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <img src={cardImg} alt={c} loading="lazy" decoding="async" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     </div>
                     <div style={{ textAlign: "center", marginTop: 12 }}>
                       <div style={{ fontSize: 12.5, letterSpacing: "0.12em", textTransform: "uppercase", color: cream }}>{c}</div>
@@ -2900,7 +2954,7 @@ export default function App() {
       {page === "product" && viewProduct && (
         <section style={{ padding: "50px 24px 90px" }}>
           <div style={{ maxWidth: 1080, margin: "0 auto" }}>
-            <button onClick={backToShop} style={{ background: "none", border: "none", color: stone, fontSize: 12.5, cursor: "pointer", marginBottom: 30, display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={backToShopRestoringScroll} style={{ background: "none", border: "none", color: stone, fontSize: 12.5, cursor: "pointer", marginBottom: 30, display: "flex", alignItems: "center", gap: 6 }}>
               ← Back to shop
             </button>
 
@@ -3048,7 +3102,7 @@ export default function App() {
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10 }} className="prod-grid">
                   {customerPhotos[viewProduct.id].map((src, i) => (
-                    <img key={i} src={src} alt="Customer photo" style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }} />
+                    <img key={i} src={src} alt="Customer photo" loading="lazy" decoding="async" style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }} />
                   ))}
                 </div>
               )}
@@ -3065,7 +3119,7 @@ export default function App() {
       {page === "artist" && viewArtist && (
         <section style={{ padding: "50px 24px 90px" }}>
           <div style={{ maxWidth: 1080, margin: "0 auto" }}>
-            <button onClick={backToShop} style={{ background: "none", border: "none", color: stone, fontSize: 12.5, cursor: "pointer", marginBottom: 34, display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={backToShopRestoringScroll} style={{ background: "none", border: "none", color: stone, fontSize: 12.5, cursor: "pointer", marginBottom: 34, display: "flex", alignItems: "center", gap: 6 }}>
               ← Back to shop
             </button>
 
