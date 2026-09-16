@@ -6,8 +6,17 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // DATABASE_URL is the pooled connection (Supabase's PgBouncer port 6543) —
+  // required on a serverless host like Vercel, where every function
+  // invocation can open its own connection and would otherwise exhaust
+  // Postgres' direct connection limit. DIRECT_URL is the unpooled
+  // connection (port 5432), used only by `prisma migrate` — PgBouncer's
+  // transaction-mode pooling doesn't support the session-level locks
+  // migrations need. Render, which held one long-running connection, never
+  // needed this split.
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ---------- Users ----------

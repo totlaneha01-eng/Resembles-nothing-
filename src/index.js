@@ -151,6 +151,12 @@ bootstrapAdminFromEnv();
 // CalendarConnection table means nothing to check) until GOOGLE_CLIENT_ID/
 // GOOGLE_CLIENT_SECRET exist and at least one user has connected — see
 // src/lib/googleCalendar.js and src/routes/calendar.js.
+// NOTE for Vercel: this setInterval only works on a long-running process
+// (Render, local dev). Vercel freezes/recycles function containers between
+// requests, so this won't fire reliably there — if gift reminders end up
+// mattering on Vercel, replace it with a Vercel Cron Job (vercel.json
+// "crons") hitting a dedicated endpoint instead. Currently a non-issue since
+// this whole feature is already off (no GOOGLE_CLIENT_ID/SECRET set).
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   const { runGiftSync } = require("./lib/giftSync");
@@ -158,5 +164,14 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   setInterval(() => runGiftSync().catch((err) => console.error("Gift sync failed:", err.message)), ONE_DAY_MS);
 }
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`resembles.nothing API running on :${PORT}`));
+// Only bind a port when this file is actually run directly (`node
+// src/index.js`, as Render and local dev both do). A serverless platform
+// (Vercel) instead requires the file it imports (see api/index.js) without
+// ever running it as the main module, then calls the exported Express app
+// as a per-request handler — no persistent process, no port to listen on.
+if (require.main === module) {
+  const PORT = process.env.PORT || 4000;
+  app.listen(PORT, () => console.log(`resembles.nothing API running on :${PORT}`));
+}
+
+module.exports = app;
