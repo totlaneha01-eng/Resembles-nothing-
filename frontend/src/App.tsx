@@ -2694,7 +2694,7 @@ export default function App() {
                 <Btn onClick={() => setShowQuiz(true)}>Take the Quiz →</Btn>
               </div>
               <div style={{ position: "relative", borderRadius: 18, overflow: "hidden", aspectRatio: "4/5" }}>
-                <img src="/products/ancestral-sun.png" alt="" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <img src="/products/ancestral-sun.jpg" alt="" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 42%, rgba(10,10,9,0.8))" }} />
                 <div style={{ position: "absolute", left: 22, right: 22, bottom: 20, fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", fontSize: 19, color: cream }}>Different walls. Same souls.</div>
               </div>
@@ -2733,7 +2733,7 @@ export default function App() {
           </section>
 
           <section style={{ marginTop: 80, position: "relative", minHeight: 220, display: "flex", alignItems: "center", padding: "50px 24px", overflow: "hidden" }}>
-            <img src="/products/panther-queen.png" alt="" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src="/products/panther-queen.jpg" alt="" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
             <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(10,10,9,0.94), rgba(10,10,9,0.55))" }} />
             <div style={{ position: "relative", maxWidth: 1180, margin: "0 auto", width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
               <div>
