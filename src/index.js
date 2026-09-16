@@ -54,7 +54,21 @@ app.get("/sitemap.xml", async (req, res) => {
 // client-rendered from this one HTML shell, so express.static only ever
 // actually matches a real file here (JS/CSS/image assets, favicons) — any
 // other path falls through to the SPA-fallback route below.
-app.use(express.static(path.join(__dirname, "..", "public")));
+app.use(express.static(path.join(__dirname, "..", "public"), {
+  setHeaders: (res, filePath) => {
+    // index.html is the SPA shell and must always be revalidated so a new
+    // deploy's content-hashed asset links take effect immediately. Everything
+    // else (images, JS/CSS bundles, icons) is safe to cache for a day —
+    // long enough to spare repeat visitors a re-download, short enough that
+    // an image swapped in place under the same filename (as happens when
+    // product/banner photos get replaced) isn't stuck stale for long.
+    if (filePath.endsWith(".html")) {
+      res.setHeader("Cache-Control", "no-cache");
+    } else {
+      res.setHeader("Cache-Control", "public, max-age=86400");
+    }
+  },
+}));
 
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/products", require("./routes/products"));
