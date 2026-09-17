@@ -35,8 +35,8 @@ router.get("/mine", requireAuth, requireArtist, async (req, res) => {
 });
 
 // Admin-side payout ledger — everything currently owed to artists, across everyone.
-// Actually moving the money (via RazorpayX Payouts, Cashfree, or a manual bank
-// transfer) happens outside this API; this just tracks what's owed and marks it paid.
+// Actually moving the money (via a payout provider or a manual bank transfer)
+// happens outside this API; this just tracks what's owed and marks it paid.
 router.get("/ledger", requireAuth, requireAdmin, async (req, res) => {
   const pending = await prisma.orderItem.findMany({
     where: { artistPayoutStatus: "PENDING" },

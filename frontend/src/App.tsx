@@ -261,7 +261,7 @@ const QUIZ_QUESTIONS = [
 ];
 
 const TRUST_BADGES = [
-  { icon: "🔒", label: "Secure prepaid checkout", sub: "UPI, confirmed by our team" }, // was "Powered by Razorpay" — swap back once Razorpay's account keys are connected
+  { icon: "🔒", label: "Secure prepaid checkout", sub: "UPI, confirmed by our team" },
   { icon: "🖋️", label: "Founder-backed", sub: "Real people stand behind every order" },
   { icon: "📦", label: "Made & shipped, tracked", sub: "Updates sent straight to your DMs" },
   { icon: "🎨", label: "Curated, limited runs", sub: "Each design carries a capped edition size" },
@@ -345,7 +345,7 @@ const CATEGORY_TAGLINES = {
 };
 
 const FAQS = [
-  { q: "Why do I have to pay the full amount upfront?", a: "Every piece is made specifically for your order, so we ask for prepayment before production starts. Right now that's a direct UPI payment, confirmed by our team on WhatsApp, while we finish setting up card/netbanking checkout through Razorpay — and the founder's own Instagram is linked on this site if you'd like to see the person accountable for your order." },
+  { q: "Why do I have to pay the full amount upfront?", a: "Every piece is made specifically for your order, so we ask for prepayment before production starts. That's a direct UPI payment, confirmed by our team on WhatsApp — and the founder's own Instagram is linked on this site if you'd like to see the person accountable for your order." },
   { q: "Will my design ever be sold again?", a: "Each design has a set edition size — sometimes just one piece, sometimes a small run — decided when it's listed. Once every piece in that edition sells, it's retired from the catalog for good and won't be reprinted." },
   { q: "How long does an order take to arrive?", a: "Most tapestries ship within 3–5 working days and canvases within 5–8 working days, since each one is made to order. From there, delivery usually takes another 3–6 days within India, or roughly 10–20 working days internationally depending on your country." },
   { q: "Can I return or exchange a piece?", a: "Because every item is made specifically for your order, we don't accept returns for change-of-mind. If a piece arrives damaged or defective, we'll replace it free of charge — just send us photos within 48 hours of delivery." },
@@ -1684,10 +1684,9 @@ export default function App() {
     reader.readAsDataURL(file);
   }
 
-  // Temporary manual-UPI checkout, until Razorpay's account keys are
-  // connected — the buyer pays the QR directly, then this hands them
-  // straight to WhatsApp with their order pre-filled so we can match the
-  // payment and confirm by hand. Nothing here can auto-verify a UPI
+  // Manual-UPI checkout — the buyer pays the QR directly, then this hands
+  // them straight to WhatsApp with their order pre-filled so we can match
+  // the payment and confirm by hand. Nothing here can auto-verify a UPI
   // payment, so the "order placed" state below means "sent to us for
   // confirmation," not "payment verified."
   async function placeOrder(e) {
@@ -2933,7 +2932,7 @@ export default function App() {
           <div style={{ maxWidth: 680, margin: "0 auto" }}>
             <Eyebrow>Terms</Eyebrow>
             <h1 style={{ fontSize: "clamp(1.9rem,3.8vw,2.8rem)", marginTop: 14, marginBottom: 24 }}>Terms of Service.</h1>
-            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 16 }}>We're finalizing the complete Terms of Service for resembles.nothing — this page will carry the full version soon. In the meantime, here's what matters most: every order is prepaid and made specifically for you; each design has a fixed edition size, and once it's sold out it won't be reprinted; payments are currently taken by direct UPI, confirmed by our team, while we finish setting up Razorpay for cards and netbanking.</p>
+            <p style={{ color: stone, fontSize: 15, lineHeight: 1.85, marginBottom: 16 }}>We're finalizing the complete Terms of Service for resembles.nothing — this page will carry the full version soon. In the meantime, here's what matters most: every order is prepaid and made specifically for you; each design has a fixed edition size, and once it's sold out it won't be reprinted; payments are taken by direct UPI, confirmed by our team.</p>
             <p style={{ color: stone, fontSize: 15, lineHeight: 1.85 }}>Questions about a specific order or policy? Reach us directly on <span onClick={() => openInfoPage("contact")} style={{ color: goldHi, cursor: "pointer", textDecoration: "underline" }}>WhatsApp or Instagram</span> — happy to help.</p>
           </div>
         </section>
@@ -3879,7 +3878,7 @@ export default function App() {
                 <Btn full type="submit" style={{ marginTop: 4 }}>
                   I've Paid — Send Order on WhatsApp
                 </Btn>
-                <p style={{ fontSize: 10.5, color: stone, marginTop: 12, textAlign: "center" }}>Temporary manual payment while we finish setting up Razorpay — every order is still confirmed by a real person before it goes into production.</p>
+                <p style={{ fontSize: 10.5, color: stone, marginTop: 12, textAlign: "center" }}>Every order is confirmed by a real person before it goes into production.</p>
               </form>
             </>
           ) : (
