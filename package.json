@@ -2,6 +2,9 @@
   "name": "resembles-nothing-api",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
