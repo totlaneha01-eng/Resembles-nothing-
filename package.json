@@ -21,8 +21,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
-    "pdfkit": "^0.20.2",
-    "razorpay": "^2.9.4"
+    "pdfkit": "^0.20.2"
   },
   "devDependencies": {
     "prisma": "^5.18.0"

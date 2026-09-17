@@ -245,19 +245,18 @@ model Order {
 
   // Set by an admin from the Admin Dashboard once they've matched the
   // buyer's UPI payment screenshot to this order — see the "Confirm
-  // Payment" flow in routes/orders.js. Only meaningful for orders placed
-  // through the manual-UPI checkout (paymentMethod: "UPI_MANUAL");
-  // Razorpay orders are considered paid once /verify succeeds instead.
-  paymentMethod      String    @default("RAZORPAY") // "RAZORPAY" | "UPI_MANUAL"
+  // Payment" flow in routes/orders.js. razorpayOrderId/razorpayPaymentId
+  // above are legacy — Razorpay checkout was disconnected; manual UPI,
+  // confirmed by an admin, is the only checkout path now.
+  paymentMethod      String    @default("UPI_MANUAL") // "UPI_MANUAL" | "RAZORPAY" (legacy)
   paymentConfirmed   Boolean   @default(false)
   paymentConfirmedAt DateTime?
 
   // The buyer's UPI payment screenshot, uploaded straight from checkout —
-  // a base64 data URI, stored here (not on disk: Render's filesystem isn't
-  // persistent across deploys) so it survives as long as the order does and
-  // an admin can review it right next to "Confirm Payment" instead of
-  // having to go dig through WhatsApp. Temporary, same as the whole
-  // manual-UPI flow — goes away once Razorpay verification replaces it.
+  // a base64 data URI, stored here (not on disk: Render's/Vercel's
+  // filesystem isn't persistent) so it survives as long as the order does
+  // and an admin can review it right next to "Confirm Payment" instead of
+  // having to go dig through WhatsApp.
   paymentScreenshot String? @db.Text
 
   statusEvents OrderStatusEvent[]

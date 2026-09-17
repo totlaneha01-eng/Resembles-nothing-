@@ -9,7 +9,7 @@ replace it with.
 
 - **Node.js + Express** — API server
 - **PostgreSQL + Prisma** — database (schema in `prisma/schema.prisma`)
-- **Razorpay** — payment processing
+- **Manual UPI checkout** — buyer pays via UPI, uploads a screenshot, an admin confirms it from the dashboard (no payment gateway connected)
 - **WhatsApp Business Cloud API** (Meta) — order status + cart notifications
 - **JWT** — auth (swap for sessions/Clerk/Auth0 if you'd rather not roll your own)
 
