@@ -120,26 +120,28 @@ process.on("unhandledRejection", (reason) => {
 // Admin bootstrap without Shell access — Render's Shell tab is a paid-plan
 // feature, so `node scripts/make-admin.js <email>` isn't runnable on a free
 // service. This gives the same result from the (free-tier) Environment tab
-// instead: set ADMIN_BOOTSTRAP_EMAIL to the account's email and redeploy
-// (Render redeploys automatically on an env var change) — on boot, if a user
-// with that exact email exists and isn't already an admin, it's promoted.
-// Safe to leave set permanently: it only ever matches one account (whoever
-// controls the Render dashboard chose that email) and no-ops once that
-// account is already an admin.
+// instead: set ADMIN_BOOTSTRAP_EMAIL to a comma-separated list of account
+// emails and redeploy — on boot, each one that already has an account and
+// isn't already an admin gets promoted. Safe to leave set permanently: it
+// only ever matches accounts whoever controls the dashboard chose, and
+// no-ops once they're already admins.
 async function bootstrapAdminFromEnv() {
-  const email = process.env.ADMIN_BOOTSTRAP_EMAIL;
-  if (!email) return;
-  try {
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      console.log(`Admin bootstrap: no account found for ${email} yet — sign up first, then redeploy.`);
-      return;
+  const raw = process.env.ADMIN_BOOTSTRAP_EMAIL;
+  if (!raw) return;
+  const emails = raw.split(",").map((e) => e.trim()).filter(Boolean);
+  for (const email of emails) {
+    try {
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        console.log(`Admin bootstrap: no account found for ${email} yet — sign up first, then redeploy.`);
+        continue;
+      }
+      if (user.isAdmin) continue;
+      await prisma.user.update({ where: { email }, data: { isAdmin: true } });
+      console.log(`Admin bootstrap: ${email} is now an admin.`);
+    } catch (err) {
+      console.error(`Admin bootstrap failed for ${email} (server still starting normally):`, err.message);
     }
-    if (user.isAdmin) return;
-    await prisma.user.update({ where: { email }, data: { isAdmin: true } });
-    console.log(`Admin bootstrap: ${email} is now an admin.`);
-  } catch (err) {
-    console.error("Admin bootstrap failed (server still starting normally):", err.message);
   }
 }
 bootstrapAdminFromEnv();
