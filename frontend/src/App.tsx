@@ -3746,8 +3746,19 @@ export default function App() {
           <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
             <span style={{ fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: goldHi, border: `1px solid ${gold}`, padding: "5px 10px" }}>Shopper</span>
             {user.isArtist && <span style={{ fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: goldHi, border: `1px solid ${gold}`, padding: "5px 10px" }}>Artist</span>}
+            {user.isAdmin && <span style={{ fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: ink, background: gold, padding: "5px 10px" }}>Admin</span>}
             {quizResult && <span style={{ fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: goldHi, border: `1px solid ${gold}`, padding: "5px 10px" }}>{quizResult.name}</span>}
           </div>
+
+          {user.isAdmin && (
+            <div style={{ border: `1px solid ${gold}`, background: "rgba(201,162,75,0.08)", padding: "16px 18px", marginBottom: 26 }}>
+              <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 8 }}>Admin</div>
+              <p style={{ fontSize: 12.5, color: stone, lineHeight: 1.6, marginBottom: 12 }}>
+                Review and approve design requests and artist design submissions, manage the catalogue, and track orders.
+              </p>
+              <Btn onClick={() => { setShowProfile(false); setPage("admin"); window.scrollTo(0, 0); }}>Open Admin Dashboard</Btn>
+            </div>
+          )}
 
           <div style={{ marginBottom: 26 }}>
             <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 12 }}>Order History</div>
