@@ -1128,6 +1128,110 @@ function DesignRequestsPanel({ gold, goldHi, cream, stone, line, ink2 }) {
 }
 
 // Real, DB-connected — same as AddProductsPanel/DesignRequestsPanel above.
+// Approving publishes the submission straight into the live catalog (see
+// POST /api/artists/submissions/:id/approve); category/width are chosen
+// here since the artist's own submission form doesn't collect them.
+function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categoryOptions, onCountChange, onApproved }) {
+  const [subs, setSubs] = useState(null); // null = loading
+  const [error, setError] = useState("");
+  const [drafts, setDrafts] = useState({}); // id -> { category, widthCm, reviewNote }
+
+  function refetch() {
+    apiFetch("/artists/submissions/pending")
+      .then((data) => {
+        const list = data.submissions || [];
+        setSubs(list);
+        onCountChange?.(list.length);
+      })
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load submissions."));
+  }
+  useEffect(() => { refetch(); }, []);
+
+  function draft(id) {
+    return drafts[id] || { category: "", widthCm: "30", reviewNote: "" };
+  }
+  function setDraft(id, patch) {
+    setDrafts((d) => ({ ...d, [id]: { ...draft(id), ...patch } }));
+  }
+
+  async function approve(id) {
+    const d = draft(id);
+    try {
+      await apiFetch(`/artists/submissions/${id}/approve`, {
+        method: "POST",
+        body: JSON.stringify({ category: d.category || undefined, widthCm: d.widthCm ? Number(d.widthCm) : undefined }),
+      });
+      refetch();
+      onApproved?.();
+    } catch {
+      // best-effort — the row just won't update; refetch() on next panel view will pick up the real state
+    }
+  }
+
+  async function reject(id) {
+    const d = draft(id);
+    try {
+      await apiFetch(`/artists/submissions/${id}/reject`, {
+        method: "POST",
+        body: JSON.stringify({ reviewNote: d.reviewNote || undefined }),
+      });
+      refetch();
+    } catch {
+      // best-effort, same as approve above
+    }
+  }
+
+  return (
+    <div style={{ marginBottom: 44 }}>
+      <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Pending Artist Submissions</div>
+      {error && <p style={{ color: "#c9524b", fontSize: 12.5 }}>{error}</p>}
+      {subs === null && !error && <p style={{ color: stone, fontSize: 12.5 }}>Loading…</p>}
+      {subs && subs.length === 0 && <p style={{ fontSize: 12.5, color: stone }}>Nothing waiting on review right now.</p>}
+      {subs && subs.length > 0 && (
+        <div>
+          {subs.map((s) => (
+            <div key={s.id} style={{ display: "flex", gap: 14, alignItems: "flex-start", border: `1px solid ${line}`, padding: 14, marginBottom: 10, flexWrap: "wrap" }}>
+              {s.imageUrl && <img src={s.imageUrl} alt="" style={{ width: 50, height: 62, objectFit: "cover", flexShrink: 0 }} />}
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <div style={{ fontSize: 13.5, color: cream }}>{s.title}</div>
+                <div style={{ fontSize: 11, color: stone, marginTop: 2 }}>
+                  {s.artist?.name || "Unknown artist"} · {(s.formats || []).join(" + ").toLowerCase()} · {currency(s.suggestedPrice)}
+                </div>
+                <div style={{ fontSize: 11.5, color: stone, marginTop: 6, lineHeight: 1.5 }}>{s.description}</div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 200 }}>
+                <input
+                  list={`submission-category-${s.id}`} placeholder="Category (defaults to Abstract)"
+                  value={draft(s.id).category} onChange={(e) => setDraft(s.id, { category: e.target.value })}
+                  style={{ background: ink2, border: `1px solid ${line}`, color: cream, padding: "6px 8px", fontSize: 11.5, outline: "none" }}
+                />
+                <datalist id={`submission-category-${s.id}`}>
+                  {categoryOptions.filter((c) => c !== "All").map((c) => <option key={c} value={c} />)}
+                </datalist>
+                <input
+                  type="number" min="1" placeholder="Width (cm)"
+                  value={draft(s.id).widthCm} onChange={(e) => setDraft(s.id, { widthCm: e.target.value })}
+                  style={{ background: ink2, border: `1px solid ${line}`, color: cream, padding: "6px 8px", fontSize: 11.5, outline: "none" }}
+                />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => approve(s.id)} style={{ flex: 1, fontSize: 11, padding: "8px 14px", background: gold, color: ink, border: "none", cursor: "pointer" }}>Approve</button>
+                  <button onClick={() => reject(s.id)} style={{ flex: 1, fontSize: 11, padding: "8px 14px", background: "none", color: "#c9524b", border: "1px solid #c9524b", cursor: "pointer" }}>Reject</button>
+                </div>
+                <input
+                  placeholder="Rejection note (optional)"
+                  value={draft(s.id).reviewNote} onChange={(e) => setDraft(s.id, { reviewNote: e.target.value })}
+                  style={{ background: ink2, border: `1px solid ${line}`, color: stone, padding: "6px 8px", fontSize: 11 }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Real, DB-connected — same as AddProductsPanel/DesignRequestsPanel above.
 // Unconfirmed manual-UPI orders float to the top since those are the ones
 // actually waiting on a human (matching a payment screenshot to an order).
 function OrdersPanel({ gold, goldHi, cream, stone, line, ink2 }) {
@@ -1230,9 +1334,11 @@ export default function App() {
   const [cart, setCart] = useState([]);
   const [user, setUser] = useState(null);
   const [submissions, setSubmissions] = useState([]);
+  const [pendingSubmissionCount, setPendingSubmissionCount] = useState(0);
   const [showProfile, setShowProfile] = useState(false);
   const [showSubmitArt, setShowSubmitArt] = useState(false);
   const [submitPreview, setSubmitPreview] = useState(null);
+  const [submitArtBusy, setSubmitArtBusy] = useState(false);
   const [artistStep, setArtistStep] = useState("info"); // "info" | "bank"
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizStep, setQuizStep] = useState(0);
@@ -1371,6 +1477,27 @@ export default function App() {
       .catch(() => {});
   }
 
+  // Real submissions for the signed-in artist — replaces whatever was in
+  // local state (which only ever held submissions sent this session).
+  function refetchSubmissions() {
+    if (!getToken()) { setSubmissions([]); return; }
+    apiFetch("/artists/submissions/mine")
+      .then((data) => {
+        setSubmissions(
+          (data.submissions || []).map((s) => ({
+            id: s.id,
+            title: s.title,
+            price: s.suggestedPrice,
+            format: (s.formats || []).join(" + ").toLowerCase(),
+            desc: s.description,
+            img: s.imageUrl,
+            status: s.status.toLowerCase(),
+          }))
+        );
+      })
+      .catch(() => {});
+  }
+
   // Optimistic toggle — flips the heart instantly, then reconciles with the
   // server; on failure it reverts so the UI never lies about saved state.
   // Keyed by dbId (the real Product row id), not id (which is the slug for
@@ -1407,7 +1534,10 @@ export default function App() {
     const token = getToken();
     if (token) {
       apiFetch("/auth/me")
-        .then((data) => setUser(data.user))
+        .then((data) => {
+          setUser(data.user);
+          if (data.user.isArtist) refetchSubmissions();
+        })
         .catch(() => clearToken());
       refetchSaved();
       refetchOrders();
@@ -1520,6 +1650,7 @@ export default function App() {
       showToast(`Signed in as ${data.user.name}`);
       refetchSaved();
       refetchOrders();
+      if (data.user.isArtist) refetchSubmissions();
     } catch (err) {
       setAuthError(err instanceof ApiError ? err.message : "Something went wrong — try again.");
     } finally {
@@ -1535,48 +1666,70 @@ export default function App() {
     showToast("Signed out");
   }
 
-  function becomeArtist() {
-    setArtistStep("bank");
+  async function becomeArtist() {
+    try {
+      const data = await apiFetch("/artists/apply", { method: "POST" });
+      setUser(data.user);
+      setArtistStep("bank");
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : "Something went wrong — try again.");
+    }
   }
 
-  function confirmArtistBank(e) {
+  async function confirmArtistBank(e) {
     e.preventDefault();
-    setUser((u) => ({ ...u, isArtist: true }));
-    setArtistStep("info");
-    showToast("You're in — you can now submit designs for review");
+    const form = new FormData(e.target);
+    try {
+      await apiFetch("/payouts/bank-details", {
+        method: "POST",
+        body: JSON.stringify({
+          accountHolderName: form.get("accountHolderName"),
+          accountNumber: form.get("accountNumber"),
+          ifsc: form.get("ifsc"),
+          upiId: form.get("upiId") || undefined,
+        }),
+      });
+      setArtistStep("info");
+      showToast("You're in — you can now submit designs for review");
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : "Couldn't save your payout details — try again.");
+    }
   }
 
   function handleSubmitPreview(e) {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setSubmitPreview(ev.target.result);
-    reader.readAsDataURL(file);
+    handleScreenshotFile(file, setSubmitPreview, () => {});
   }
 
-  function submitArtwork(e) {
+  async function submitArtwork(e) {
     e.preventDefault();
     const form = new FormData(e.target);
-    setSubmissions((s) => [
-      { id: Date.now(), title: form.get("title"), price: Number(form.get("price")) || 0, format: form.get("format"), desc: form.get("desc"), img: submitPreview, status: "pending" },
-      ...s,
-    ]);
-    setShowSubmitArt(false);
-    setSubmitPreview(null);
-    e.target.reset();
-    showToast("Design submitted — our team will review it shortly");
+    const formatValue = form.get("format");
+    const formats = formatValue === "both" ? ["TAPESTRY", "CANVAS"] : formatValue === "tapestry" ? ["TAPESTRY"] : ["CANVAS"];
+    setSubmitArtBusy(true);
+    try {
+      await apiFetch("/artists/submissions", {
+        method: "POST",
+        body: JSON.stringify({
+          title: form.get("title"),
+          description: form.get("desc"),
+          suggestedPrice: Number(form.get("price")) || 0,
+          formats,
+          imageUrl: submitPreview,
+        }),
+      });
+      setShowSubmitArt(false);
+      setSubmitPreview(null);
+      e.target.reset();
+      showToast("Design submitted — our team will review it shortly");
+      refetchSubmissions();
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : "Couldn't submit your design — try again.");
+    } finally {
+      setSubmitArtBusy(false);
+    }
   }
 
-  // Admin review actions — in production these call POST /api/artists/submissions/:id/approve|reject
-  // on the backend, which also publishes an approved submission as a live Product.
-  function approveSubmission(id) {
-    setSubmissions((s) => s.map((x) => (x.id === id ? { ...x, status: "approved" } : x)));
-    showToast("Submission approved — would now go live in the catalog");
-  }
-  function rejectSubmission(id) {
-    setSubmissions((s) => s.map((x) => (x.id === id ? { ...x, status: "rejected" } : x)));
-    showToast("Submission rejected");
-  }
   function updateOrderStatus(orderId, status) {
     setOrders((os) => os.map((o) => (o.id === orderId ? { ...o, status } : o)));
     showToast(`Order marked "${status}" — customer notified on WhatsApp`);
@@ -1798,7 +1951,6 @@ export default function App() {
 
   // ---- Admin dashboard derived data ----
   const adminTotalRevenue = orders.reduce((s, o) => s + o.total, 0);
-  const adminPendingSubs = submissions.filter((s) => s.status === "pending");
   const adminSoldCount = CATALOG.filter((p) => p.sold).length;
   const adminCategoryBreakdown = CATEGORIES.filter((c) => c !== "All").map((c) => ({
     category: c,
@@ -3172,7 +3324,7 @@ export default function App() {
             ) : (
             <>
             <div style={{ border: `1px solid ${gold}`, background: "rgba(201,162,75,0.08)", padding: "12px 16px", fontSize: 11.5, color: goldHi, marginBottom: 36, lineHeight: 1.6 }}>
-              ⚠ Orders, submissions, and cart counts below reflect this browser session, not your real database yet — Add Products just below is real, everything else here is still preview.
+              ⚠ The stat cards and category chart below still reflect this browser session, not your real database — Add Products, Orders, Design Requests, and Submissions above/below are real.
             </div>
 
             <AddProductsPanel
@@ -3191,7 +3343,7 @@ export default function App() {
                 { label: "Revenue (this session)", value: currency(adminTotalRevenue) },
                 { label: "Total Designs", value: CATALOG.length },
                 { label: "Sold", value: adminSoldCount },
-                { label: "Pending Submissions", value: adminPendingSubs.length },
+                { label: "Pending Submissions", value: pendingSubmissionCount },
                 { label: "Artist Payouts Owed", value: currency(adminArtists.reduce((s, a) => s + a.payoutOwed, 0)) },
               ].map((s) => (
                 <div key={s.label} style={{ border: `1px solid ${line}`, padding: "18px 14px", textAlign: "center" }}>
@@ -3217,29 +3369,10 @@ export default function App() {
               </div>
             </div>
 
-            {/* Pending submissions review queue */}
-            <div style={{ marginBottom: 44 }}>
-              <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Pending Artist Submissions</div>
-              {adminPendingSubs.length === 0 ? (
-                <p style={{ fontSize: 12.5, color: stone }}>Nothing waiting on review right now.</p>
-              ) : (
-                <div>
-                  {adminPendingSubs.map((s) => (
-                    <div key={s.id} style={{ display: "flex", gap: 14, alignItems: "center", border: `1px solid ${line}`, padding: 14, marginBottom: 10, flexWrap: "wrap" }}>
-                      {s.img && <img src={s.img} alt="" style={{ width: 50, height: 62, objectFit: "cover", flexShrink: 0 }} />}
-                      <div style={{ flex: 1, minWidth: 160 }}>
-                        <div style={{ fontSize: 13.5, color: cream }}>{s.title}</div>
-                        <div style={{ fontSize: 11, color: stone, marginTop: 2 }}>{s.format} · {currency(s.price)}</div>
-                      </div>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button onClick={() => approveSubmission(s.id)} style={{ fontSize: 11, padding: "8px 14px", background: gold, color: ink, border: "none", cursor: "pointer" }}>Approve</button>
-                        <button onClick={() => rejectSubmission(s.id)} style={{ fontSize: 11, padding: "8px 14px", background: "none", color: "#c9524b", border: "1px solid #c9524b", cursor: "pointer" }}>Reject</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <SubmissionsPanel
+              gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink={ink} ink2={ink2}
+              categoryOptions={categoryOptions} onCountChange={setPendingSubmissionCount} onApproved={refetchProducts}
+            />
 
             {/* Recent orders */}
             <div style={{ marginBottom: 44 }}>
@@ -3662,12 +3795,12 @@ export default function App() {
                   <p style={{ fontSize: 12, color: stone, lineHeight: 1.65, marginBottom: 16 }}>
                     We only ever pay out after a piece is delivered. These details are stored securely and never shown to buyers.
                   </p>
-                  <Field label="Account holder name" required />
-                  <Field label="Bank account number" required />
-                  <Field label="IFSC code" required />
-                  <Field label="UPI ID (optional)" placeholder="you@upi" />
+                  <Field label="Account holder name" name="accountHolderName" required />
+                  <Field label="Bank account number" name="accountNumber" required />
+                  <Field label="IFSC code" name="ifsc" required />
+                  <Field label="UPI ID (optional)" name="upiId" placeholder="you@upi" />
                   <Btn full type="submit">Confirm & Start Submitting</Btn>
-                  <p style={{ fontSize: 10, color: stone, marginTop: 10, textAlign: "center" }}>Demo form — connecting real payouts needs a secure backend (see note below).</p>
+                  <p style={{ fontSize: 10, color: stone, marginTop: 10, textAlign: "center" }}>Your bank details are encrypted and never shown to buyers.</p>
                 </form>
               )}
             </div>
@@ -3755,7 +3888,7 @@ export default function App() {
                 fontSize: 14, fontFamily: "'Jost', sans-serif", outline: "none", boxSizing: "border-box", resize: "vertical"
               }} />
             </label>
-            <Btn full type="submit" disabled={!submitPreview}>Submit for Review</Btn>
+            <Btn full type="submit" disabled={!submitPreview || submitArtBusy}>{submitArtBusy ? "Submitting…" : "Submit for Review"}</Btn>
           </form>
         </Modal>
       )}
