@@ -3281,7 +3281,7 @@ export default function App() {
               <div>
                 <h1 style={{ fontSize: "clamp(1.8rem,3.2vw,2.6rem)" }}>{viewArtist}</h1>
                 <div style={{ fontSize: 12, color: stone, marginTop: 6 }}>
-                  On resembles.nothing since {ARTIST_BIOS[viewArtist]?.since || "2024"} · {CATALOG.filter((p) => p.artist === viewArtist).length} design{CATALOG.filter((p) => p.artist === viewArtist).length === 1 ? "" : "s"} · {CATALOG.filter((p) => p.artist === viewArtist && p.sold).length} sold
+                  On resembles.nothing since {ARTIST_BIOS[viewArtist]?.since || "2024"} · {allProducts.filter((p) => p.artist === viewArtist).length} design{allProducts.filter((p) => p.artist === viewArtist).length === 1 ? "" : "s"} · {allProducts.filter((p) => p.artist === viewArtist && p.sold).length} sold
                 </div>
               </div>
             </div>
@@ -3293,7 +3293,7 @@ export default function App() {
               {viewArtist === "resembles.nothing studio" ? "House designs" : `Designs by ${viewArtist}`}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "28px 24px" }} className="prod-grid">
-              {CATALOG.filter((p) => p.artist === viewArtist).map((p) => (
+              {allProducts.filter((p) => p.artist === viewArtist).map((p) => (
                 <ProductCard key={p.id} p={p} gold={gold} goldHi={goldHi} cream={cream} stone={stone} priceFmt={fmtProduct} openProduct={openProduct} isSaved={!!p.dbId && savedIds.has(p.dbId)} onToggleSaved={toggleSaved} />
               ))}
             </div>
