@@ -1231,6 +1231,174 @@ function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categor
   );
 }
 
+// Real, DB-connected summary — stat cards, category chart, top products,
+// artist roster/payouts. Cross-references /admin/dashboard's topProducts
+// (just ids + counts) against allProducts (already loaded app-wide) for
+// name/image instead of a second backend query, and /payouts/ledger for
+// real per-artist amounts owed.
+function AdminDashboardPanel({ gold, goldHi, cream, stone, line, ink, ink2, allProducts, openProduct, openArtist, onPendingSubmissionCount }) {
+  const [data, setData] = useState(null); // null = loading
+  const [ledger, setLedger] = useState([]);
+  const [error, setError] = useState("");
+
+  function refetch() {
+    Promise.all([apiFetch("/admin/dashboard"), apiFetch("/payouts/ledger").catch(() => ({ pending: [] }))])
+      .then(([dashboard, payouts]) => {
+        setData(dashboard);
+        setLedger(payouts.pending || []);
+        onPendingSubmissionCount?.(dashboard.totals.pendingSubmissions);
+      })
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load the dashboard."));
+  }
+  useEffect(() => { refetch(); }, []);
+
+  if (error) return <p style={{ color: "#c9524b", fontSize: 12.5, marginBottom: 44 }}>{error}</p>;
+  if (!data) return <p style={{ color: stone, fontSize: 12.5, marginBottom: 44 }}>Loading dashboard…</p>;
+
+  const { totals, topProducts, categoryBreakdown } = data;
+  const topProductsResolved = topProducts
+    .map((tp) => ({ ...tp, product: allProducts.find((p) => p.dbId === tp.productId) }))
+    .filter((tp) => tp.product);
+
+  const payoutsByArtist = {};
+  for (const item of ledger) {
+    const name = item.artist?.name || "Unknown";
+    payoutsByArtist[name] = (payoutsByArtist[name] || 0) + (item.artistPayoutAmount || 0);
+  }
+  const artistRoster = [...new Set(allProducts.map((p) => p.artist))]
+    .map((name) => {
+      const designs = allProducts.filter((p) => p.artist === name);
+      return { name, designCount: designs.length, soldCount: designs.filter((p) => p.sold).length, payoutOwed: payoutsByArtist[name] || 0 };
+    })
+    .sort((a, b) => b.payoutOwed - a.payoutOwed || b.designCount - a.designCount);
+
+  const chartData = categoryBreakdown.map((c) => ({ category: c.category, count: c._count.category }));
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 14, marginBottom: 44 }} className="admin-stat-grid">
+        {[
+          { label: "Total Orders", value: totals.orders },
+          { label: "Revenue", value: currency(totals.revenue) },
+          { label: "Users", value: totals.users },
+          { label: "Artists", value: totals.artists },
+          { label: "Pending Submissions", value: totals.pendingSubmissions },
+          { label: "Artist Payouts Owed", value: currency(totals.artistPayoutsOwed) },
+        ].map((s) => (
+          <div key={s.label} style={{ border: `1px solid ${line}`, padding: "18px 14px", textAlign: "center" }}>
+            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, color: goldHi }}>{s.value}</div>
+            <div style={{ fontSize: 10, color: stone, marginTop: 6, lineHeight: 1.4 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginBottom: 44 }}>
+        <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Catalogue by Category</div>
+        <div style={{ border: `1px solid ${line}`, padding: "20px 10px 4px", height: 240 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(201,162,75,0.15)" vertical={false} />
+              <XAxis dataKey="category" stroke={stone} fontSize={11} tickLine={false} />
+              <YAxis stroke={stone} fontSize={11} allowDecimals={false} tickLine={false} />
+              <Tooltip contentStyle={{ background: ink, border: `1px solid ${line}`, fontSize: 12 }} labelStyle={{ color: cream }} itemStyle={{ color: goldHi }} />
+              <Bar dataKey="count" fill={gold} radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40 }} className="viz-grid">
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Top Products by Orders</div>
+          {topProductsResolved.length === 0 ? (
+            <p style={{ fontSize: 12.5, color: stone }}>No orders yet.</p>
+          ) : (
+            topProductsResolved.map((tp, i) => (
+              <div key={tp.productId} onClick={() => openProduct(tp.product)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: `1px solid ${line}`, cursor: "pointer" }}>
+                <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: stone, width: 20 }}>{i + 1}</span>
+                <img src={tp.product.images[0]} alt="" style={{ width: 34, height: 42, objectFit: "cover" }} />
+                <div style={{ flex: 1, fontSize: 12.5, color: cream }}>{tp.product.name}</div>
+                <div style={{ fontSize: 11.5, color: goldHi }}>{tp._count.productId} order{tp._count.productId > 1 ? "s" : ""}</div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Artist Roster & Payouts</div>
+          {artistRoster.map((a) => (
+            <div key={a.name} onClick={() => openArtist(a.name)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: `1px solid ${line}`, cursor: "pointer" }}>
+              <div style={{ width: 30, height: 30, borderRadius: "50%", background: ink2, border: `1px solid ${gold}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: goldHi, flexShrink: 0 }}>{a.name[0].toUpperCase()}</div>
+              <div style={{ flex: 1, fontSize: 12.5, color: cream }}>{a.name}</div>
+              <div style={{ fontSize: 11, color: stone }}>{a.designCount} designs · {a.soldCount} sold</div>
+              {a.payoutOwed > 0 && <div style={{ fontSize: 11.5, color: goldHi }}>{currency(a.payoutOwed)} owed</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// A "keep watch" feed, separate from the action panels (Orders/Submissions)
+// above — merges recent orders and recent design submissions by recency and
+// polls every 20s so new activity shows up without a manual refresh.
+function AdminActivityPanel({ gold, goldHi, cream, stone, line }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+
+  function refetch() {
+    apiFetch("/admin/dashboard")
+      .then((d) => setData(d))
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load activity."));
+  }
+  useEffect(() => {
+    refetch();
+    const interval = setInterval(refetch, 20000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (error) return <p style={{ color: "#c9524b", fontSize: 12.5 }}>{error}</p>;
+  if (!data) return <p style={{ color: stone, fontSize: 12.5 }}>Loading…</p>;
+
+  const events = [
+    ...data.recentOrders.map((o) => ({
+      id: `order-${o.id}`, time: o.createdAt, icon: "🛍️",
+      title: `${o.user?.name || "Someone"} placed an order`,
+      detail: `${o.items.length} piece${o.items.length > 1 ? "s" : ""} · ${currency(o.totalAmount)}`,
+    })),
+    ...data.recentSubmissions.map((s) => ({
+      id: `submission-${s.id}`, time: s.createdAt, icon: "🎨",
+      title: `${s.artist?.name || "Someone"} submitted a design`,
+      detail: `"${s.title}" · ${s.status.toLowerCase()}`,
+    })),
+  ].sort((a, b) => new Date(b.time) - new Date(a.time));
+
+  return (
+    <div>
+      <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>
+        Live Activity <span style={{ color: stone, textTransform: "none", letterSpacing: "normal" }}>— refreshes automatically</span>
+      </div>
+      {events.length === 0 ? (
+        <p style={{ fontSize: 12.5, color: stone }}>Nothing yet — new orders and design submissions will show up here as they happen.</p>
+      ) : (
+        <div>
+          {events.map((e) => (
+            <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: `1px solid ${line}` }}>
+              <span style={{ fontSize: 16, width: 26, textAlign: "center" }}>{e.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, color: cream }}>{e.title}</div>
+                <div style={{ fontSize: 11.5, color: stone, marginTop: 2 }}>{e.detail}</div>
+              </div>
+              <div style={{ fontSize: 10.5, color: stone, whiteSpace: "nowrap" }}>{new Date(e.time).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Real, DB-connected — same as AddProductsPanel/DesignRequestsPanel above.
 // Unconfirmed manual-UPI orders float to the top since those are the ones
 // actually waiting on a human (matching a payment screenshot to an order).
@@ -1335,6 +1503,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [pendingSubmissionCount, setPendingSubmissionCount] = useState(0);
+  const [adminTab, setAdminTab] = useState("overview"); // "overview" | "activity" | "manage"
   const [showProfile, setShowProfile] = useState(false);
   const [showSubmitArt, setShowSubmitArt] = useState(false);
   const [submitPreview, setSubmitPreview] = useState(null);
@@ -1363,6 +1532,14 @@ export default function App() {
   const [dbProducts, setDbProducts] = useState([]);
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotBusy, setForgotBusy] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotError, setForgotError] = useState("");
+  const [resetToken, setResetToken] = useState(null); // present -> "set a new password" screen is showing
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetError, setResetError] = useState("");
+  const [resetDone, setResetDone] = useState(false);
   const [savedIds, setSavedIds] = useState(() => new Set()); // productIds in the current user's wishlist
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1544,6 +1721,17 @@ export default function App() {
     }
   }, []);
 
+  // A password-reset email link lands on /reset-password?token=... — pick
+  // that up on load and show the "set a new password" screen instead of
+  // resolvePath's normal routing (the token is a query param, not a path,
+  // so it can't go through the PAGE_PATH registry).
+  useEffect(() => {
+    if (window.location.pathname === "/reset-password") {
+      const token = new URLSearchParams(window.location.search).get("token");
+      if (token) setResetToken(token);
+    }
+  }, []);
+
   // Reads whether Calendar's actually connected server-side (real state, not
   // just local UI state), and handles the ?calendar=connected|denied|error
   // that Google's OAuth redirect lands back on the homepage with.
@@ -1666,6 +1854,39 @@ export default function App() {
     showToast("Signed out");
   }
 
+  async function submitForgotPassword(e) {
+    e.preventDefault();
+    setForgotError("");
+    setForgotBusy(true);
+    const email = new FormData(e.target).get("email");
+    try {
+      await apiFetch("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
+      setForgotSent(true);
+    } catch (err) {
+      setForgotError(err instanceof ApiError ? err.message : "Something went wrong — try again.");
+    } finally {
+      setForgotBusy(false);
+    }
+  }
+
+  async function submitResetPassword(e) {
+    e.preventDefault();
+    setResetError("");
+    const form = new FormData(e.target);
+    const password = form.get("password");
+    const confirm = form.get("confirm");
+    if (password !== confirm) { setResetError("Passwords don't match"); return; }
+    setResetBusy(true);
+    try {
+      await apiFetch("/auth/reset-password", { method: "POST", body: JSON.stringify({ token: resetToken, password }) });
+      setResetDone(true);
+    } catch (err) {
+      setResetError(err instanceof ApiError ? err.message : "Something went wrong — try again.");
+    } finally {
+      setResetBusy(false);
+    }
+  }
+
   async function becomeArtist() {
     try {
       const data = await apiFetch("/artists/apply", { method: "POST" });
@@ -1730,10 +1951,6 @@ export default function App() {
     }
   }
 
-  function updateOrderStatus(orderId, status) {
-    setOrders((os) => os.map((o) => (o.id === orderId ? { ...o, status } : o)));
-    showToast(`Order marked "${status}" — customer notified on WhatsApp`);
-  }
 
   function answerQuiz(personaId) {
     const next = [...quizAnswers, personaId];
@@ -1949,20 +2166,6 @@ export default function App() {
   const effectiveFormat = selectedFormat || availableFormats[0];
   const effectiveProduct = viewProduct ? withFormat(viewProduct, effectiveFormat) : null;
 
-  // ---- Admin dashboard derived data ----
-  const adminTotalRevenue = orders.reduce((s, o) => s + o.total, 0);
-  const adminSoldCount = CATALOG.filter((p) => p.sold).length;
-  const adminCategoryBreakdown = CATEGORIES.filter((c) => c !== "All").map((c) => ({
-    category: c,
-    count: CATALOG.filter((p) => p.category === c).length,
-  }));
-  const adminTopProducts = [...CATALOG].sort((a, b) => b.cartCount - a.cartCount).slice(0, 5);
-  const adminArtists = [...new Set(CATALOG.map((p) => p.artist))].map((name) => {
-    const designs = CATALOG.filter((p) => p.artist === name);
-    const sold = designs.filter((p) => p.sold);
-    const payoutOwed = name === "resembles.nothing studio" ? 0 : sold.reduce((s, p) => s + Math.round((p.price * ARTIST_COMMISSION_PCT) / 100), 0);
-    return { name, designCount: designs.length, soldCount: sold.length, payoutOwed };
-  });
 
   // SEO / AI-crawler groundwork: structured Product data, title, meta
   // description, and canonical URL for whichever page is showing — now that
@@ -3323,107 +3526,50 @@ export default function App() {
               </div>
             ) : (
             <>
-            <div style={{ border: `1px solid ${gold}`, background: "rgba(201,162,75,0.08)", padding: "12px 16px", fontSize: 11.5, color: goldHi, marginBottom: 36, lineHeight: 1.6 }}>
-              ⚠ The stat cards and category chart below still reflect this browser session, not your real database — Add Products, Orders, Design Requests, and Submissions above/below are real.
-            </div>
-
-            <AddProductsPanel
-              gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink2={ink2}
-              categoryOptions={categoryOptions} onAdded={refetchProducts}
-            />
-
-            <OrdersPanel gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink2={ink2} />
-
-            <DesignRequestsPanel gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink2={ink2} />
-
-            {/* Stat cards */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 14, marginBottom: 44 }} className="admin-stat-grid">
+            {/* Tabs: Overview (real stats/charts) — Activity (live feed, keeps
+                watch on new orders + design submissions as they land) —
+                Manage (the action panels: add products, confirm payments,
+                review design requests and artist submissions). */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 32, borderBottom: `1px solid ${line}` }}>
               {[
-                { label: "Orders (this session)", value: orders.length },
-                { label: "Revenue (this session)", value: currency(adminTotalRevenue) },
-                { label: "Total Designs", value: CATALOG.length },
-                { label: "Sold", value: adminSoldCount },
-                { label: "Pending Submissions", value: pendingSubmissionCount },
-                { label: "Artist Payouts Owed", value: currency(adminArtists.reduce((s, a) => s + a.payoutOwed, 0)) },
-              ].map((s) => (
-                <div key={s.label} style={{ border: `1px solid ${line}`, padding: "18px 14px", textAlign: "center" }}>
-                  <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, color: goldHi }}>{s.value}</div>
-                  <div style={{ fontSize: 10, color: stone, marginTop: 6, lineHeight: 1.4 }}>{s.label}</div>
-                </div>
+                ["overview", "Overview"],
+                ["activity", "Activity"],
+                ["manage", "Manage"],
+              ].map(([key, label]) => (
+                <button key={key} onClick={() => setAdminTab(key)} style={{
+                  background: "none", border: "none", cursor: "pointer", padding: "10px 6px", marginRight: 18,
+                  fontSize: 12.5, letterSpacing: "0.04em", color: adminTab === key ? goldHi : stone,
+                  borderBottom: adminTab === key ? `2px solid ${gold}` : "2px solid transparent",
+                }}>{label}{key === "activity" && pendingSubmissionCount > 0 ? ` (${pendingSubmissionCount})` : ""}</button>
               ))}
             </div>
 
-            {/* Category breakdown chart */}
-            <div style={{ marginBottom: 44 }}>
-              <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Catalogue by Category</div>
-              <div style={{ border: `1px solid ${line}`, padding: "20px 10px 4px", height: 240 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={adminCategoryBreakdown} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(201,162,75,0.15)" vertical={false} />
-                    <XAxis dataKey="category" stroke={stone} fontSize={11} tickLine={false} />
-                    <YAxis stroke={stone} fontSize={11} allowDecimals={false} tickLine={false} />
-                    <Tooltip contentStyle={{ background: ink, border: `1px solid ${line}`, fontSize: 12 }} labelStyle={{ color: cream }} itemStyle={{ color: goldHi }} />
-                    <Bar dataKey="count" fill={gold} radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+            {adminTab === "overview" && (
+              <AdminDashboardPanel
+                gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink={ink} ink2={ink2}
+                allProducts={allProducts} openProduct={openProduct} openArtist={openArtist}
+                onPendingSubmissionCount={setPendingSubmissionCount}
+              />
+            )}
 
-            <SubmissionsPanel
-              gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink={ink} ink2={ink2}
-              categoryOptions={categoryOptions} onCountChange={setPendingSubmissionCount} onApproved={refetchProducts}
-            />
+            {adminTab === "activity" && (
+              <AdminActivityPanel gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} />
+            )}
 
-            {/* Recent orders */}
-            <div style={{ marginBottom: 44 }}>
-              <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Recent Orders</div>
-              {orders.length === 0 ? (
-                <p style={{ fontSize: 12.5, color: stone }}>No orders placed in this session yet.</p>
-              ) : (
-                <div style={{ border: `1px solid ${line}` }}>
-                  {orders.map((o) => (
-                    <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderBottom: `1px solid ${line}`, flexWrap: "wrap" }}>
-                      <div style={{ fontSize: 11, color: stone, minWidth: 90 }}>{new Date(o.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</div>
-                      <div style={{ fontSize: 12.5, color: cream, flex: 1, minWidth: 140 }}>{o.items.length} piece{o.items.length > 1 ? "s" : ""}</div>
-                      <div style={{ fontSize: 12.5, color: goldHi }}>{currency(o.total)}</div>
-                      <select value={o.status} onChange={(e) => updateOrderStatus(o.id, e.target.value)} style={{
-                        background: ink2, border: `1px solid ${line}`, color: cream, fontSize: 11, padding: "6px 10px"
-                      }}>
-                        {ORDER_STEPS.map((st) => <option key={st} value={st}>{st}</option>)}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40 }} className="viz-grid">
-              {/* Top products */}
-              <div>
-                <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Top Products by Cart Interest</div>
-                {adminTopProducts.map((p, i) => (
-                  <div key={p.id} onClick={() => openProduct(p)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: `1px solid ${line}`, cursor: "pointer" }}>
-                    <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: stone, width: 20 }}>{i + 1}</span>
-                    <img src={p.images[0]} alt="" style={{ width: 34, height: 42, objectFit: "cover" }} />
-                    <div style={{ flex: 1, fontSize: 12.5, color: cream }}>{p.name}</div>
-                    <div style={{ fontSize: 11.5, color: goldHi }}>{p.cartCount} carts</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Artist roster */}
-              <div>
-                <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Artist Roster & Payouts</div>
-                {adminArtists.map((a) => (
-                  <div key={a.name} onClick={() => openArtist(a.name)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: `1px solid ${line}`, cursor: "pointer" }}>
-                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: ink2, border: `1px solid ${gold}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: goldHi, flexShrink: 0 }}>{a.name[0].toUpperCase()}</div>
-                    <div style={{ flex: 1, fontSize: 12.5, color: cream }}>{a.name}</div>
-                    <div style={{ fontSize: 11, color: stone }}>{a.designCount} designs · {a.soldCount} sold</div>
-                    {a.payoutOwed > 0 && <div style={{ fontSize: 11.5, color: goldHi }}>{currency(a.payoutOwed)} owed</div>}
-                  </div>
-                ))}
-              </div>
-            </div>
+            {adminTab === "manage" && (
+              <>
+                <AddProductsPanel
+                  gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink2={ink2}
+                  categoryOptions={categoryOptions} onAdded={refetchProducts}
+                />
+                <OrdersPanel gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink2={ink2} />
+                <DesignRequestsPanel gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink2={ink2} />
+                <SubmissionsPanel
+                  gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink={ink} ink2={ink2}
+                  categoryOptions={categoryOptions} onCountChange={setPendingSubmissionCount} onApproved={refetchProducts}
+                />
+              </>
+            )}
             </>
             )}
           </div>
@@ -3577,7 +3723,7 @@ export default function App() {
       )}
 
       {/* LOGIN MODAL */}
-      {showLogin && (
+      {showLogin && !showForgotPassword && (
         <Modal onClose={() => setShowLogin(false)}>
           <button onClick={() => setShowLogin(false)} style={{ position: "absolute", top: 18, right: 18, background: "none", border: "none", color: stone, fontSize: 20, cursor: "pointer" }}>×</button>
           <Logo size={30} />
@@ -3590,6 +3736,11 @@ export default function App() {
             {authError && <p style={{ color: "#c9524b", fontSize: 12, marginTop: 4 }}>{authError}</p>}
             <Btn full type="submit" disabled={authLoading} style={{ marginTop: 6 }}>{authLoading ? "…" : authMode === "login" ? "Log In" : "Sign Up"}</Btn>
           </form>
+          {authMode === "login" && (
+            <div style={{ textAlign: "center", marginTop: 14 }}>
+              <span onClick={() => { setShowForgotPassword(true); setForgotSent(false); setForgotError(""); }} style={{ fontSize: 12, color: stone, textDecoration: "underline", cursor: "pointer" }}>Forgot password?</span>
+            </div>
+          )}
           <div style={{ textAlign: "center", marginTop: 18, fontSize: 12.5, color: stone }}>
             {authMode === "login" ? (
               <>New here? <span onClick={() => setAuthMode("signup")} style={{ color: goldHi, cursor: "pointer" }}>Create a profile</span></>
@@ -3597,9 +3748,57 @@ export default function App() {
               <>Already have one? <span onClick={() => setAuthMode("login")} style={{ color: goldHi, cursor: "pointer" }}>Log in</span></>
             )}
           </div>
-          <div style={{ textAlign: "center", marginTop: 14 }}>
-            <button onClick={() => { setUser({ name: "Guest", email: "guest@resemblesnothing.com" }); setShowLogin(false); }} style={{ background: "none", border: "none", color: stone, fontSize: 12, textDecoration: "underline", cursor: "pointer" }}>Continue as guest</button>
-          </div>
+        </Modal>
+      )}
+
+      {/* FORGOT PASSWORD MODAL */}
+      {showLogin && showForgotPassword && (
+        <Modal onClose={() => { setShowLogin(false); setShowForgotPassword(false); }}>
+          <button onClick={() => { setShowLogin(false); setShowForgotPassword(false); }} style={{ position: "absolute", top: 18, right: 18, background: "none", border: "none", color: stone, fontSize: 20, cursor: "pointer" }}>×</button>
+          <Logo size={30} />
+          <h3 style={{ fontSize: 24, margin: "22px 0 6px" }}>Reset your password</h3>
+          {forgotSent ? (
+            <>
+              <p style={{ color: stone, fontSize: 13, lineHeight: 1.7, marginBottom: 22 }}>
+                If an account exists for that email, we've sent a link to reset your password. It expires in an hour.
+              </p>
+              <Btn full onClick={() => { setShowForgotPassword(false); setAuthMode("login"); }}>Back to Log In</Btn>
+            </>
+          ) : (
+            <>
+              <p style={{ color: stone, fontSize: 13, marginBottom: 22 }}>Enter the email on your account and we'll send you a reset link.</p>
+              <form onSubmit={submitForgotPassword}>
+                <Field label="Email" name="email" type="email" placeholder="you@email.com" required />
+                {forgotError && <p style={{ color: "#c9524b", fontSize: 12, marginTop: 4 }}>{forgotError}</p>}
+                <Btn full type="submit" disabled={forgotBusy} style={{ marginTop: 6 }}>{forgotBusy ? "…" : "Send Reset Link"}</Btn>
+              </form>
+              <div style={{ textAlign: "center", marginTop: 18, fontSize: 12.5, color: stone }}>
+                <span onClick={() => setShowForgotPassword(false)} style={{ color: goldHi, cursor: "pointer" }}>Back to Log In</span>
+              </div>
+            </>
+          )}
+        </Modal>
+      )}
+
+      {/* RESET PASSWORD MODAL — reached via the emailed /reset-password?token=... link */}
+      {resetToken && (
+        <Modal onClose={() => setResetToken(null)}>
+          <button onClick={() => setResetToken(null)} style={{ position: "absolute", top: 18, right: 18, background: "none", border: "none", color: stone, fontSize: 20, cursor: "pointer" }}>×</button>
+          <Logo size={30} />
+          <h3 style={{ fontSize: 24, margin: "22px 0 6px" }}>Set a new password</h3>
+          {resetDone ? (
+            <>
+              <p style={{ color: stone, fontSize: 13, lineHeight: 1.7, marginBottom: 22 }}>Your password's been reset — sign in with it below.</p>
+              <Btn full onClick={() => { setResetToken(null); setAuthMode("login"); setShowLogin(true); window.history.replaceState({}, "", "/"); }}>Log In</Btn>
+            </>
+          ) : (
+            <form onSubmit={submitResetPassword}>
+              <Field label="New password" name="password" type="password" placeholder="At least 8 characters" required minLength={8} />
+              <Field label="Confirm new password" name="confirm" type="password" placeholder="••••••••" required minLength={8} />
+              {resetError && <p style={{ color: "#c9524b", fontSize: 12, marginTop: 4 }}>{resetError}</p>}
+              <Btn full type="submit" disabled={resetBusy} style={{ marginTop: 6 }}>{resetBusy ? "…" : "Set New Password"}</Btn>
+            </form>
+          )}
         </Modal>
       )}
 

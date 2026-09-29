@@ -46,6 +46,7 @@ model User {
   chatsAsCustomer ChatMessage[]  @relation("CustomerChats")
   chatsSent       ChatMessage[]  @relation("SentChats")
   calendarConnection CalendarConnection?
+  passwordResets  PasswordResetToken[]
 }
 
 // Bank details are collected so we can pay artists per sale.
@@ -59,6 +60,21 @@ model BankDetails {
   ifsc              String
   upiId             String?
   updatedAt         DateTime @updatedAt
+}
+
+// "Forgot password" flow. Stores a SHA-256 hash of the emailed token, never
+// the raw value — same reasoning as a passwordHash, just a fast hash instead
+// of bcrypt since this is a high-entropy random token, not a user-chosen
+// password. A row is single-use (usedAt) and short-lived (expiresAt); old
+// rows are harmless clutter, not a security problem, so nothing prunes them.
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 }
 
 // ---------- Catalog ----------
