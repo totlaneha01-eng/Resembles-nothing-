@@ -1,6 +1,7 @@
 const express = require("express");
 const prisma = require("../lib/prisma");
 const { requireAuth, requireArtist, requireAdmin } = require("../middleware/auth");
+const { publicUser } = require("../lib/publicUser");
 
 const router = express.Router();
 
@@ -9,7 +10,7 @@ const router = express.Router();
 // separately via POST /api/payouts/bank-details before their first submission.
 router.post("/apply", requireAuth, async (req, res) => {
   const user = await prisma.user.update({ where: { id: req.user.id }, data: { isArtist: true } });
-  res.json({ user });
+  res.json({ user: publicUser(user) });
 });
 
 router.post("/submissions", requireAuth, requireArtist, async (req, res) => {

@@ -3983,7 +3983,16 @@ export default function App() {
             )}
           </div>
 
-          {!user.isArtist ? (
+          {/* becomeArtist() flips user.isArtist to true immediately (it's a
+              real server call now, not local-only state) as soon as they hit
+              "Continue" — before they've filled in bank details. Gating on
+              isArtist alone would skip straight past the bank-details form
+              to "My Submissions" the instant they click through. artistStep
+              is what actually tracks where they are in the wizard; only an
+              already-established artist (isArtist true, never entered the
+              wizard this session, so artistStep is still its "info" default)
+              should see "My Submissions". */}
+          {!(user.isArtist && artistStep !== "bank") ? (
             <div style={{ border: `1px solid ${line}`, padding: 22 }}>
               {artistStep === "info" ? (
                 <>
