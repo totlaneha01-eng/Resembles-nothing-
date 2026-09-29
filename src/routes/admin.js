@@ -7,52 +7,68 @@ const router = express.Router();
 // One aggregate endpoint the admin dashboard calls on load. Split into
 // separate cached queries once traffic makes a single call too slow.
 router.get("/dashboard", requireAuth, requireAdmin, async (req, res) => {
-  const [
-    totalUsers,
-    totalArtists,
-    totalOrders,
-    revenueAgg,
-    pendingSubmissions,
-    pendingPayouts,
-    topProducts,
-    recentOrders,
-    categoryBreakdown,
-  ] = await Promise.all([
-    prisma.user.count(),
-    prisma.user.count({ where: { isArtist: true } }),
-    prisma.order.count({ where: { status: { not: "CANCELLED" } } }),
-    prisma.order.aggregate({ where: { status: { not: "CANCELLED" } }, _sum: { totalAmount: true } }),
-    prisma.artistSubmission.count({ where: { status: "PENDING" } }),
-    prisma.orderItem.aggregate({ where: { artistPayoutStatus: "PENDING" }, _sum: { artistPayoutAmount: true } }),
-    prisma.orderItem.groupBy({ by: ["productId"], _count: { productId: true }, orderBy: { _count: { productId: "desc" } }, take: 5 }),
-    prisma.order.findMany({ take: 10, orderBy: { createdAt: "desc" }, include: { user: { select: { name: true } }, items: true } }),
-    prisma.product.groupBy({ by: ["category"], _count: { category: true } }),
-  ]);
-
-  res.json({
-    totals: {
-      users: totalUsers,
-      artists: totalArtists,
-      orders: totalOrders,
-      revenue: revenueAgg._sum.totalAmount || 0,
+  try {
+    const [
+      totalUsers,
+      totalArtists,
+      totalOrders,
+      revenueAgg,
       pendingSubmissions,
-      artistPayoutsOwed: pendingPayouts._sum.artistPayoutAmount || 0,
-    },
-    topProducts,
-    recentOrders,
-    categoryBreakdown,
-  });
+      pendingPayouts,
+      topProducts,
+      recentOrders,
+      recentSubmissions,
+      categoryBreakdown,
+    ] = await Promise.all([
+      prisma.user.count(),
+      prisma.user.count({ where: { isArtist: true } }),
+      prisma.order.count({ where: { status: { not: "CANCELLED" } } }),
+      prisma.order.aggregate({ where: { status: { not: "CANCELLED" } }, _sum: { totalAmount: true } }),
+      prisma.artistSubmission.count({ where: { status: "PENDING" } }),
+      prisma.orderItem.aggregate({ where: { artistPayoutStatus: "PENDING" }, _sum: { artistPayoutAmount: true } }),
+      prisma.orderItem.groupBy({ by: ["productId"], _count: { productId: true }, orderBy: { _count: { productId: "desc" } }, take: 5 }),
+      prisma.order.findMany({ take: 10, orderBy: { createdAt: "desc" }, include: { user: { select: { name: true } }, items: true } }),
+      // Every status, not just PENDING — this is "what's been happening"
+      // for the Activity feed, not the review queue (that's the Submissions
+      // panel, which only cares about PENDING).
+      prisma.artistSubmission.findMany({ take: 10, orderBy: { createdAt: "desc" }, include: { artist: { select: { name: true } } } }),
+      prisma.product.groupBy({ by: ["category"], _count: { category: true } }),
+    ]);
+
+    res.json({
+      totals: {
+        users: totalUsers,
+        artists: totalArtists,
+        orders: totalOrders,
+        revenue: revenueAgg._sum.totalAmount || 0,
+        pendingSubmissions,
+        artistPayoutsOwed: pendingPayouts._sum.artistPayoutAmount || 0,
+      },
+      topProducts,
+      recentOrders,
+      recentSubmissions,
+      categoryBreakdown,
+    });
+  } catch (err) {
+    console.error("admin/dashboard failed:", err);
+    res.status(500).json({ error: "Couldn't load the dashboard — try again." });
+  }
 });
 
 // Per-user activity — "what is this specific person doing" drill-down.
 router.get("/users/:id/activity", requireAuth, requireAdmin, async (req, res) => {
-  const [orders, cartItems, submissions, reviews] = await Promise.all([
-    prisma.order.findMany({ where: { userId: req.params.id }, include: { items: true } }),
-    prisma.cartItem.findMany({ where: { userId: req.params.id }, include: { product: true } }),
-    prisma.artistSubmission.findMany({ where: { artistId: req.params.id } }),
-    prisma.review.findMany({ where: { userId: req.params.id } }),
-  ]);
-  res.json({ orders, cartItems, submissions, reviews });
+  try {
+    const [orders, cartItems, submissions, reviews] = await Promise.all([
+      prisma.order.findMany({ where: { userId: req.params.id }, include: { items: true } }),
+      prisma.cartItem.findMany({ where: { userId: req.params.id }, include: { product: true } }),
+      prisma.artistSubmission.findMany({ where: { artistId: req.params.id } }),
+      prisma.review.findMany({ where: { userId: req.params.id } }),
+    ]);
+    res.json({ orders, cartItems, submissions, reviews });
+  } catch (err) {
+    console.error("admin/users/:id/activity failed:", err);
+    res.status(500).json({ error: "Couldn't load that user's activity — try again." });
+  }
 });
 
 module.exports = router;
