@@ -5,17 +5,13 @@ const jwt = require("jsonwebtoken");
 const prisma = require("../lib/prisma");
 const { requireAuth } = require("../middleware/auth");
 const { sendEmail } = require("../lib/email");
+const { publicUser } = require("../lib/publicUser");
 
 const router = express.Router();
 
 function signToken(userId) {
   if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is not set — add it in the deployment's environment variables");
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "30d" });
-}
-
-function publicUser(u) {
-  const { passwordHash, ...safe } = u;
-  return safe;
 }
 
 // Every handler below is wrapped in try/catch on purpose — Express 4 doesn't
