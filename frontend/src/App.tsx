@@ -1238,13 +1238,19 @@ function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categor
 // real per-artist amounts owed.
 function AdminDashboardPanel({ gold, goldHi, cream, stone, line, ink, ink2, allProducts, openProduct, openArtist, onPendingSubmissionCount }) {
   const [data, setData] = useState(null); // null = loading
+  const [artists, setArtists] = useState([]);
   const [ledger, setLedger] = useState([]);
   const [error, setError] = useState("");
 
   function refetch() {
-    Promise.all([apiFetch("/admin/dashboard"), apiFetch("/payouts/ledger").catch(() => ({ pending: [] }))])
-      .then(([dashboard, payouts]) => {
+    Promise.all([
+      apiFetch("/admin/dashboard"),
+      apiFetch("/admin/artists").catch(() => ({ artists: [] })),
+      apiFetch("/payouts/ledger").catch(() => ({ pending: [] })),
+    ])
+      .then(([dashboard, artistsRes, payouts]) => {
         setData(dashboard);
+        setArtists(artistsRes.artists || []);
         setLedger(payouts.pending || []);
         onPendingSubmissionCount?.(dashboard.totals.pendingSubmissions);
       })
@@ -1260,17 +1266,24 @@ function AdminDashboardPanel({ gold, goldHi, cream, stone, line, ink, ink2, allP
     .map((tp) => ({ ...tp, product: allProducts.find((p) => p.dbId === tp.productId) }))
     .filter((tp) => tp.product);
 
-  const payoutsByArtist = {};
+  const payoutsByArtistId = {};
   for (const item of ledger) {
-    const name = item.artist?.name || "Unknown";
-    payoutsByArtist[name] = (payoutsByArtist[name] || 0) + (item.artistPayoutAmount || 0);
+    if (!item.artistId) continue;
+    payoutsByArtistId[item.artistId] = (payoutsByArtistId[item.artistId] || 0) + (item.artistPayoutAmount || 0);
   }
-  const artistRoster = [...new Set(allProducts.map((p) => p.artist))]
-    .map((name) => {
-      const designs = allProducts.filter((p) => p.artist === name);
-      return { name, designCount: designs.length, soldCount: designs.filter((p) => p.sold).length, payoutOwed: payoutsByArtist[name] || 0 };
-    })
-    .sort((a, b) => b.payoutOwed - a.payoutOwed || b.designCount - a.designCount);
+  // Every real artist account — not just ones with a published product, so
+  // someone who's only just applied (no submissions approved yet) still
+  // shows up here instead of being invisible until their first approval.
+  const artistRoster = artists
+    .map((a) => ({
+      id: a.id,
+      name: a.name,
+      email: a.email,
+      designCount: a._count.products,
+      submissionCount: a._count.submissions,
+      payoutOwed: payoutsByArtistId[a.id] || 0,
+    }))
+    .sort((a, b) => b.payoutOwed - a.payoutOwed || b.submissionCount - a.submissionCount);
 
   const chartData = categoryBreakdown.map((c) => ({ category: c.category, count: c._count.category }));
 
@@ -1326,14 +1339,21 @@ function AdminDashboardPanel({ gold, goldHi, cream, stone, line, ink, ink2, allP
 
         <div>
           <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Artist Roster & Payouts</div>
-          {artistRoster.map((a) => (
-            <div key={a.name} onClick={() => openArtist(a.name)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: `1px solid ${line}`, cursor: "pointer" }}>
-              <div style={{ width: 30, height: 30, borderRadius: "50%", background: ink2, border: `1px solid ${gold}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: goldHi, flexShrink: 0 }}>{a.name[0].toUpperCase()}</div>
-              <div style={{ flex: 1, fontSize: 12.5, color: cream }}>{a.name}</div>
-              <div style={{ fontSize: 11, color: stone }}>{a.designCount} designs · {a.soldCount} sold</div>
-              {a.payoutOwed > 0 && <div style={{ fontSize: 11.5, color: goldHi }}>{currency(a.payoutOwed)} owed</div>}
-            </div>
-          ))}
+          {artistRoster.length === 0 ? (
+            <p style={{ fontSize: 12.5, color: stone }}>No artist accounts yet.</p>
+          ) : (
+            artistRoster.map((a) => (
+              <div key={a.id} onClick={() => openArtist(a.name)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: `1px solid ${line}`, cursor: "pointer" }}>
+                <div style={{ width: 30, height: 30, borderRadius: "50%", background: ink2, border: `1px solid ${gold}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: goldHi, flexShrink: 0 }}>{a.name[0].toUpperCase()}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, color: cream }}>{a.name}</div>
+                  <div style={{ fontSize: 10.5, color: stone }}>{a.email}</div>
+                </div>
+                <div style={{ fontSize: 11, color: stone, textAlign: "right" }}>{a.designCount} live · {a.submissionCount} submitted</div>
+                {a.payoutOwed > 0 && <div style={{ fontSize: 11.5, color: goldHi }}>{currency(a.payoutOwed)} owed</div>}
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

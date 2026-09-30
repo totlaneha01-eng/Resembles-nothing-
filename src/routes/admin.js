@@ -55,6 +55,30 @@ router.get("/dashboard", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// Every artist account, regardless of whether they've published a live
+// product yet — the dashboard's "Artist Roster" used to be derived purely
+// from published Products, so someone who'd only just applied (no
+// submissions approved yet) was invisible there. This is the real source.
+router.get("/artists", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const artists = await prisma.user.findMany({
+      where: { isArtist: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
+        _count: { select: { submissions: true, products: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json({ artists });
+  } catch (err) {
+    console.error("admin/artists failed:", err);
+    res.status(500).json({ error: "Couldn't load artists — try again." });
+  }
+});
+
 // Per-user activity — "what is this specific person doing" drill-down.
 router.get("/users/:id/activity", requireAuth, requireAdmin, async (req, res) => {
   try {
