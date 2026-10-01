@@ -1274,26 +1274,14 @@ function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categor
 // (just ids + counts) against allProducts (already loaded app-wide) for
 // name/image instead of a second backend query, and /payouts/ledger for
 // real per-artist amounts owed.
-function AdminDashboardPanel({ gold, goldHi, cream, stone, line, ink, ink2, allProducts, openProduct, openArtist, onPendingSubmissionCount }) {
+function AdminDashboardPanel({ gold, goldHi, cream, stone, line, ink, ink2, allProducts, openProduct, onPendingSubmissionCount }) {
   const [data, setData] = useState(null); // null = loading
-  const [artists, setArtists] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [ledger, setLedger] = useState([]);
   const [error, setError] = useState("");
-  const [userQuery, setUserQuery] = useState("");
 
   function refetch() {
-    Promise.all([
-      apiFetch("/admin/dashboard"),
-      apiFetch("/admin/artists").catch(() => ({ artists: [] })),
-      apiFetch("/admin/users").catch(() => ({ users: [] })),
-      apiFetch("/payouts/ledger").catch(() => ({ pending: [] })),
-    ])
-      .then(([dashboard, artistsRes, usersRes, payouts]) => {
+    apiFetch("/admin/dashboard")
+      .then((dashboard) => {
         setData(dashboard);
-        setArtists(artistsRes.artists || []);
-        setUsers(usersRes.users || []);
-        setLedger(payouts.pending || []);
         onPendingSubmissionCount?.(dashboard.totals.pendingSubmissions);
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load the dashboard."));
@@ -1308,29 +1296,7 @@ function AdminDashboardPanel({ gold, goldHi, cream, stone, line, ink, ink2, allP
     .map((tp) => ({ ...tp, product: allProducts.find((p) => p.dbId === tp.productId) }))
     .filter((tp) => tp.product);
 
-  const payoutsByArtistId = {};
-  for (const item of ledger) {
-    if (!item.artistId) continue;
-    payoutsByArtistId[item.artistId] = (payoutsByArtistId[item.artistId] || 0) + (item.artistPayoutAmount || 0);
-  }
-  // Every real artist account — not just ones with a published product, so
-  // someone who's only just applied (no submissions approved yet) still
-  // shows up here instead of being invisible until their first approval.
-  const artistRoster = artists
-    .map((a) => ({
-      id: a.id,
-      name: a.name,
-      email: a.email,
-      designCount: a._count.products,
-      submissionCount: a._count.submissions,
-      payoutOwed: payoutsByArtistId[a.id] || 0,
-    }))
-    .sort((a, b) => b.payoutOwed - a.payoutOwed || b.submissionCount - a.submissionCount);
-
   const chartData = categoryBreakdown.map((c) => ({ category: c.category, count: c._count.category }));
-
-  const q = userQuery.trim().toLowerCase();
-  const filteredUsers = !q ? users : users.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
 
   return (
     <div>
@@ -1365,80 +1331,143 @@ function AdminDashboardPanel({ gold, goldHi, cream, stone, line, ink, ink2, allP
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40 }} className="viz-grid">
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Top Products by Orders</div>
-          {topProductsResolved.length === 0 ? (
-            <p style={{ fontSize: 12.5, color: stone }}>No orders yet.</p>
-          ) : (
-            topProductsResolved.map((tp, i) => (
-              <div key={tp.productId} onClick={() => openProduct(tp.product)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: `1px solid ${line}`, cursor: "pointer" }}>
-                <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: stone, width: 20 }}>{i + 1}</span>
-                <img src={tp.product.images[0]} alt="" style={{ width: 34, height: 42, objectFit: "cover" }} />
-                <div style={{ flex: 1, fontSize: 12.5, color: cream }}>{tp.product.name}</div>
-                <div style={{ fontSize: 11.5, color: goldHi }}>{tp._count.productId} order{tp._count.productId > 1 ? "s" : ""}</div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Artist Roster & Payouts ({artistRoster.length})</div>
-          {artistRoster.length === 0 ? (
-            <p style={{ fontSize: 12.5, color: stone }}>No artist accounts yet.</p>
-          ) : (
-            artistRoster.map((a) => (
-              <div key={a.id} onClick={() => openArtist(a.name)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: `1px solid ${line}`, cursor: "pointer" }}>
-                <div style={{ width: 30, height: 30, borderRadius: "50%", background: ink2, border: `1px solid ${gold}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: goldHi, flexShrink: 0 }}>{a.name[0].toUpperCase()}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12.5, color: cream }}>{a.name}</div>
-                  <div style={{ fontSize: 10.5, color: stone }}>{a.email}</div>
-                </div>
-                <div style={{ fontSize: 11, color: stone, textAlign: "right" }}>{a.designCount} live · {a.submissionCount} submitted</div>
-                {a.payoutOwed > 0 && <div style={{ fontSize: 11.5, color: goldHi }}>{currency(a.payoutOwed)} owed</div>}
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* Full user list — every account, not just artists. Shows the exact
-          stored email and isAdmin/isArtist flags for each one, which is the
-          fastest way to confirm whether ADMIN_BOOTSTRAP_EMAIL actually
-          matched the account you expected (see src/index.js's bootstrap —
-          now case-insensitive, but worth being able to verify directly). */}
-      <div style={{ marginTop: 44 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
-          <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold }}>All Users ({users.length})</div>
-          <input
-            placeholder="Search name or email…" value={userQuery} onChange={(e) => setUserQuery(e.target.value)}
-            style={{ background: ink2, border: `1px solid ${line}`, color: cream, padding: "6px 10px", fontSize: 11.5, outline: "none", minWidth: 220 }}
-          />
-        </div>
-        {users.length === 0 ? (
-          <p style={{ fontSize: 12.5, color: stone }}>No accounts yet.</p>
-        ) : filteredUsers.length === 0 ? (
-          <p style={{ fontSize: 12.5, color: stone }}>No accounts match "{userQuery}".</p>
+      <div>
+        <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Top Products by Orders</div>
+        {topProductsResolved.length === 0 ? (
+          <p style={{ fontSize: 12.5, color: stone }}>No orders yet.</p>
         ) : (
-          <div style={{ maxHeight: 420, overflowY: "auto", border: `1px solid ${line}` }}>
-            {filteredUsers.map((u) => (
-              <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderBottom: `1px solid ${line}` }}>
-                <div style={{ width: 28, height: 28, borderRadius: "50%", background: ink2, border: `1px solid ${line}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: goldHi, flexShrink: 0 }}>{u.name[0].toUpperCase()}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12.5, color: cream }}>{u.name}</div>
-                  <div style={{ fontSize: 10.5, color: stone, fontFamily: "monospace" }}>{u.email}</div>
-                </div>
-                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                  {u.isAdmin && <span style={{ fontSize: 9.5, letterSpacing: "0.05em", textTransform: "uppercase", color: goldHi, border: `1px solid ${gold}`, padding: "2px 7px" }}>Admin</span>}
-                  {u.isArtist && <span style={{ fontSize: 9.5, letterSpacing: "0.05em", textTransform: "uppercase", color: stone, border: `1px solid ${line}`, padding: "2px 7px" }}>Artist</span>}
-                </div>
-                <div style={{ fontSize: 10.5, color: stone, textAlign: "right", minWidth: 90, flexShrink: 0 }}>{u._count.orders} order{u._count.orders === 1 ? "" : "s"}</div>
-                <div style={{ fontSize: 10, color: stone, whiteSpace: "nowrap", flexShrink: 0 }}>{new Date(u.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</div>
-              </div>
-            ))}
-          </div>
+          topProductsResolved.map((tp, i) => (
+            <div key={tp.productId} onClick={() => openProduct(tp.product)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: `1px solid ${line}`, cursor: "pointer" }}>
+              <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: stone, width: 20 }}>{i + 1}</span>
+              <img src={tp.product.images[0]} alt="" style={{ width: 34, height: 42, objectFit: "cover" }} />
+              <div style={{ flex: 1, fontSize: 12.5, color: cream }}>{tp.product.name}</div>
+              <div style={{ fontSize: 11.5, color: goldHi }}>{tp._count.productId} order{tp._count.productId > 1 ? "s" : ""}</div>
+            </div>
+          ))
         )}
       </div>
+    </div>
+  );
+}
+
+// Real, DB-connected — its own tab (not buried inside Overview) so the full
+// account list is reachable directly instead of scrolling past the stats.
+// Shows the exact stored email and isAdmin/isArtist flags for each account,
+// which is the fastest way to confirm whether ADMIN_BOOTSTRAP_EMAIL actually
+// matched the account you expected (see src/index.js's bootstrap).
+function UsersPanel({ gold, goldHi, cream, stone, line, ink2 }) {
+  const [users, setUsers] = useState(null); // null = loading
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    apiFetch("/admin/users")
+      .then((data) => setUsers(data.users || []))
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load users."));
+  }, []);
+
+  if (error) return <p style={{ color: "#c9524b", fontSize: 12.5 }}>{error}</p>;
+  if (users === null) return <p style={{ color: stone, fontSize: 12.5 }}>Loading users…</p>;
+
+  const q = query.trim().toLowerCase();
+  const filtered = !q ? users : users.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+        <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold }}>All Users ({users.length})</div>
+        <input
+          placeholder="Search name or email…" value={query} onChange={(e) => setQuery(e.target.value)}
+          style={{ background: ink2, border: `1px solid ${line}`, color: cream, padding: "6px 10px", fontSize: 11.5, outline: "none", minWidth: 220 }}
+        />
+      </div>
+      {users.length === 0 ? (
+        <p style={{ fontSize: 12.5, color: stone }}>No accounts yet.</p>
+      ) : filtered.length === 0 ? (
+        <p style={{ fontSize: 12.5, color: stone }}>No accounts match "{query}".</p>
+      ) : (
+        <div style={{ border: `1px solid ${line}` }}>
+          {filtered.map((u) => (
+            <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderBottom: `1px solid ${line}`, flexWrap: "wrap" }}>
+              <div style={{ width: 28, height: 28, borderRadius: "50%", background: ink2, border: `1px solid ${line}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: goldHi, flexShrink: 0 }}>{u.name[0].toUpperCase()}</div>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <div style={{ fontSize: 12.5, color: cream }}>{u.name}</div>
+                <div style={{ fontSize: 10.5, color: stone, fontFamily: "monospace" }}>{u.email}</div>
+              </div>
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                {u.isAdmin && <span style={{ fontSize: 9.5, letterSpacing: "0.05em", textTransform: "uppercase", color: goldHi, border: `1px solid ${gold}`, padding: "2px 7px" }}>Admin</span>}
+                {u.isArtist && <span style={{ fontSize: 9.5, letterSpacing: "0.05em", textTransform: "uppercase", color: stone, border: `1px solid ${line}`, padding: "2px 7px" }}>Artist</span>}
+              </div>
+              <div style={{ fontSize: 10.5, color: stone, textAlign: "right", minWidth: 90, flexShrink: 0 }}>{u._count.orders} order{u._count.orders === 1 ? "" : "s"}</div>
+              <div style={{ fontSize: 10, color: stone, whiteSpace: "nowrap", flexShrink: 0 }}>{new Date(u.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Real, DB-connected — its own tab, same reasoning as UsersPanel above.
+// Combines /admin/artists (every artist account, including one with no
+// published product yet) with /payouts/ledger (what's actually owed) —
+// same data the old Overview-embedded roster used, just reachable directly.
+function ArtistsPanel({ gold, goldHi, cream, stone, line, ink2, openArtist }) {
+  const [artists, setArtists] = useState(null); // null = loading
+  const [ledger, setLedger] = useState([]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    Promise.all([
+      apiFetch("/admin/artists"),
+      apiFetch("/payouts/ledger").catch(() => ({ pending: [] })),
+    ])
+      .then(([artistsRes, payouts]) => {
+        setArtists(artistsRes.artists || []);
+        setLedger(payouts.pending || []);
+      })
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load artists."));
+  }, []);
+
+  if (error) return <p style={{ color: "#c9524b", fontSize: 12.5 }}>{error}</p>;
+  if (artists === null) return <p style={{ color: stone, fontSize: 12.5 }}>Loading artists…</p>;
+
+  const payoutsByArtistId = {};
+  for (const item of ledger) {
+    if (!item.artistId) continue;
+    payoutsByArtistId[item.artistId] = (payoutsByArtistId[item.artistId] || 0) + (item.artistPayoutAmount || 0);
+  }
+  const artistRoster = artists
+    .map((a) => ({
+      id: a.id,
+      name: a.name,
+      email: a.email,
+      designCount: a._count.products,
+      submissionCount: a._count.submissions,
+      payoutOwed: payoutsByArtistId[a.id] || 0,
+    }))
+    .sort((a, b) => b.payoutOwed - a.payoutOwed || b.submissionCount - a.submissionCount);
+
+  return (
+    <div>
+      <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Artist Roster & Payouts ({artistRoster.length})</div>
+      {artistRoster.length === 0 ? (
+        <p style={{ fontSize: 12.5, color: stone }}>No artist accounts yet.</p>
+      ) : (
+        <div style={{ border: `1px solid ${line}` }}>
+          {artistRoster.map((a) => (
+            <div key={a.id} onClick={() => openArtist(a.name)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderBottom: `1px solid ${line}`, cursor: "pointer", flexWrap: "wrap" }}>
+              <div style={{ width: 30, height: 30, borderRadius: "50%", background: ink2, border: `1px solid ${gold}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: goldHi, flexShrink: 0 }}>{a.name[0].toUpperCase()}</div>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <div style={{ fontSize: 12.5, color: cream }}>{a.name}</div>
+                <div style={{ fontSize: 10.5, color: stone }}>{a.email}</div>
+              </div>
+              <div style={{ fontSize: 11, color: stone, textAlign: "right", minWidth: 150 }}>{a.designCount} live · {a.submissionCount} submitted</div>
+              {a.payoutOwed > 0 && <div style={{ fontSize: 11.5, color: goldHi, minWidth: 90, textAlign: "right" }}>{currency(a.payoutOwed)} owed</div>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -3631,12 +3660,15 @@ export default function App() {
             <>
             {/* Tabs: Overview (real stats/charts) — Activity (live feed, keeps
                 watch on new orders + design submissions as they land) —
-                Manage (the action panels: add products, confirm payments,
-                review design requests and artist submissions). */}
+                Users (every account) — Artists (roster + payouts) — Manage
+                (the action panels: add products, confirm payments, review
+                design requests and artist submissions). */}
             <div style={{ display: "flex", gap: 8, marginBottom: 32, borderBottom: `1px solid ${line}` }}>
               {[
                 ["overview", "Overview"],
                 ["activity", "Activity"],
+                ["users", "Users"],
+                ["artists", "Artists"],
                 ["manage", "Manage"],
               ].map(([key, label]) => (
                 <button key={key} onClick={() => setAdminTab(key)} style={{
@@ -3650,13 +3682,21 @@ export default function App() {
             {adminTab === "overview" && (
               <AdminDashboardPanel
                 gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink={ink} ink2={ink2}
-                allProducts={allProducts} openProduct={openProduct} openArtist={openArtist}
+                allProducts={allProducts} openProduct={openProduct}
                 onPendingSubmissionCount={setPendingSubmissionCount}
               />
             )}
 
             {adminTab === "activity" && (
               <AdminActivityPanel gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} />
+            )}
+
+            {adminTab === "users" && (
+              <UsersPanel gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink2={ink2} />
+            )}
+
+            {adminTab === "artists" && (
+              <ArtistsPanel gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink2={ink2} openArtist={openArtist} />
             )}
 
             {adminTab === "manage" && (
