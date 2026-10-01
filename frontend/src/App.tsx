@@ -625,8 +625,12 @@ function ProductCard({ p, gold, goldHi, cream, stone, priceFmt, openProduct, isS
           }}
         >{isSaved ? "♥" : "♡"}</button>
       )}
-      <div style={{ aspectRatio: "3/4", overflow: "hidden" }}>
-        <img src={p.images[0]} alt={productAltText(p)} loading="lazy" decoding="async" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      {/* objectFit: contain, not cover — a landscape-oriented design used to
+          get its sides cropped off to fill this portrait box. Letterboxing
+          (dark bars) shows the full artwork instead, at the cost of not
+          filling the card edge-to-edge for non-portrait uploads. */}
+      <div style={{ aspectRatio: "3/4", overflow: "hidden", background: "#0a0a09" }}>
+        <img src={p.images[0]} alt={productAltText(p)} loading="lazy" decoding="async" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
       </div>
       <div style={{ paddingTop: 12 }}>
         <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500, fontSize: 16, color: cream, margin: 0, lineHeight: 1.3 }}>{p.name}</h3>
@@ -1629,6 +1633,19 @@ export default function App() {
   const [orders, setOrders] = useState([]);
   const [viewProduct, setViewProduct] = useState(null);
   const [activeImg, setActiveImg] = useState(0);
+  // The product page's main gallery image used to sit in a fixed 3:4
+  // portrait box with objectFit: cover, which crops the sides off any
+  // landscape-oriented design instead of showing the real artwork. This
+  // tracks the real aspect ratio of whichever image is currently showing
+  // (read from the loaded <img>'s natural size) so the box can match it —
+  // clamped so one unusually panoramic upload can't blow out the two-column
+  // layout, not to force every shape back toward portrait.
+  const [bodyImgRatio, setBodyImgRatio] = useState(3 / 4);
+  function handleBodyImageLoad(e) {
+    const { naturalWidth, naturalHeight } = e.target;
+    if (!naturalWidth || !naturalHeight) return;
+    setBodyImgRatio(Math.min(1.6, Math.max(0.6, naturalWidth / naturalHeight)));
+  }
   const [selectedFormat, setSelectedFormat] = useState(null); // e.g. "CANVAS" — which of the design's available formats is picked
   const [selectedSize, setSelectedSize] = useState(null);
   const [cart, setCart] = useState([]);
@@ -2395,6 +2412,7 @@ export default function App() {
   function openProduct(p) {
     setViewProduct(p);
     setActiveImg(0);
+    setBodyImgRatio(3 / 4); // reset so the box doesn't briefly keep the last product's shape before the new image loads
     const firstFormat = formatsFor(p)[0];
     setSelectedFormat(firstFormat);
     setSelectedSize(defaultSizeFor(withFormat(p, firstFormat)));
@@ -3447,17 +3465,17 @@ export default function App() {
               {/* Gallery */}
               <div>
                 <div style={{ fontSize: 11, color: gold, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>{IMAGE_LABELS[activeImg]}</div>
-                <div style={{ border: `1px solid ${line}`, aspectRatio: "3/4", overflow: "hidden" }} className={`fade-up ${effectiveFormat === "TAPESTRY" ? "reveal-tapestry in-view" : "reveal-canvas in-view"}`} key={viewProduct.id}>
-                  <img src={viewProduct.images[activeImg]} alt={productAltText(viewProduct)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <div style={{ border: `1px solid ${line}`, aspectRatio: String(bodyImgRatio), overflow: "hidden", background: "#0a0a09" }} className={`fade-up ${effectiveFormat === "TAPESTRY" ? "reveal-tapestry in-view" : "reveal-canvas in-view"}`} key={viewProduct.id}>
+                  <img src={viewProduct.images[activeImg]} alt={productAltText(viewProduct)} onLoad={handleBodyImageLoad} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
                 {viewProduct.images.length > 1 && (
                   <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
                     {viewProduct.images.map((im, i) => (
-                      <div key={i} onClick={() => setActiveImg(i)} style={{ textAlign: "center" }}>
+                      <div key={i} onClick={() => { setActiveImg(i); setBodyImgRatio(3 / 4); }} style={{ textAlign: "center" }}>
                         <div style={{
-                          width: 68, height: 84, border: `2px solid ${activeImg === i ? gold : line}`, cursor: "pointer", overflow: "hidden"
+                          width: 68, height: 84, border: `2px solid ${activeImg === i ? gold : line}`, cursor: "pointer", overflow: "hidden", background: "#0a0a09"
                         }}>
-                          <img src={im} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          <img src={im} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                         </div>
                         <div style={{ fontSize: 9, color: activeImg === i ? goldHi : stone, marginTop: 5, maxWidth: 68, lineHeight: 1.3 }}>{IMAGE_LABELS[i]}</div>
                       </div>
