@@ -2,6 +2,7 @@ const express = require("express");
 const prisma = require("../lib/prisma");
 const { requireAuth, requireArtist, requireAdmin } = require("../middleware/auth");
 const { publicUser } = require("../lib/publicUser");
+const { generateProductSeoContent } = require("../lib/seoContent");
 
 const router = express.Router();
 
@@ -48,18 +49,35 @@ router.post("/submissions/:id/approve", requireAuth, requireAdmin, async (req, r
   const submission = await prisma.artistSubmission.findUnique({ where: { id: req.params.id } });
   if (!submission) return res.status(404).json({ error: "Submission not found" });
 
+  const slug = slugify(submission.title);
+  const category = req.body.category || "Abstract";
+  const widthCm = req.body.widthCm || 30;
+  const blurb = req.body.blurb || submission.description.slice(0, 80);
+  // Every design approved from here on gets the same real, keyword-relevant
+  // description/story as the hand-seeded catalogue — not a copy of the
+  // artist's raw submission text — so content quality doesn't degrade as
+  // the catalogue scales past the original 217 products. See lib/seoContent.
+  const seo = generateProductSeoContent({
+    slug,
+    name: submission.title,
+    category,
+    blurb,
+    formats: submission.formats,
+    widthCm,
+  });
+
   const product = await prisma.$transaction(async (tx) => {
     const p = await tx.product.create({
       data: {
-        slug: slugify(submission.title),
+        slug,
         name: submission.title,
-        category: req.body.category || "Abstract",
+        category,
         price: submission.suggestedPrice,
-        widthCm: req.body.widthCm || 30,
+        widthCm,
         images: [submission.imageUrl, submission.imageUrl, submission.imageUrl],
-        blurb: req.body.blurb || submission.description.slice(0, 80),
-        description: submission.description,
-        story: submission.description,
+        blurb,
+        description: seo.description,
+        story: seo.story,
         features: req.body.features || [],
         formats: submission.formats,
         editionSize: submission.editionSize,
