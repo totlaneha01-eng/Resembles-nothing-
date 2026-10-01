@@ -1145,6 +1145,14 @@ function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categor
   const [subs, setSubs] = useState(null); // null = loading
   const [error, setError] = useState("");
   const [drafts, setDrafts] = useState({}); // id -> { category, widthCm, reviewNote }
+  // Tracks which rows have an approve/reject request in flight (disables
+  // that row's buttons so a slow request can't be fired twice — a double
+  // approve for the same submission used to hang instead of failing
+  // visibly, since the second request hit a since-fixed unique-constraint
+  // race on the backend) and the last error per row, so a failure is
+  // actually visible instead of the button just silently doing nothing.
+  const [pendingIds, setPendingIds] = useState(() => new Set());
+  const [actionErrors, setActionErrors] = useState({});
 
   function refetch() {
     apiFetch("/artists/submissions/pending")
@@ -1165,7 +1173,10 @@ function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categor
   }
 
   async function approve(id) {
+    if (pendingIds.has(id)) return;
     const d = draft(id);
+    setPendingIds((s) => new Set(s).add(id));
+    setActionErrors((e) => ({ ...e, [id]: "" }));
     try {
       await apiFetch(`/artists/submissions/${id}/approve`, {
         method: "POST",
@@ -1173,21 +1184,28 @@ function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categor
       });
       refetch();
       onApproved?.();
-    } catch {
-      // best-effort — the row just won't update; refetch() on next panel view will pick up the real state
+    } catch (err) {
+      setActionErrors((e) => ({ ...e, [id]: err instanceof ApiError ? err.message : "Couldn't approve — try again." }));
+    } finally {
+      setPendingIds((s) => { const next = new Set(s); next.delete(id); return next; });
     }
   }
 
   async function reject(id) {
+    if (pendingIds.has(id)) return;
     const d = draft(id);
+    setPendingIds((s) => new Set(s).add(id));
+    setActionErrors((e) => ({ ...e, [id]: "" }));
     try {
       await apiFetch(`/artists/submissions/${id}/reject`, {
         method: "POST",
         body: JSON.stringify({ reviewNote: d.reviewNote || undefined }),
       });
       refetch();
-    } catch {
-      // best-effort, same as approve above
+    } catch (err) {
+      setActionErrors((e) => ({ ...e, [id]: err instanceof ApiError ? err.message : "Couldn't reject — try again." }));
+    } finally {
+      setPendingIds((s) => { const next = new Set(s); next.delete(id); return next; });
     }
   }
 
@@ -1224,9 +1242,14 @@ function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categor
                   style={{ background: ink2, border: `1px solid ${line}`, color: cream, padding: "6px 8px", fontSize: 11.5, outline: "none" }}
                 />
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => approve(s.id)} style={{ flex: 1, fontSize: 11, padding: "8px 14px", background: gold, color: ink, border: "none", cursor: "pointer" }}>Approve</button>
-                  <button onClick={() => reject(s.id)} style={{ flex: 1, fontSize: 11, padding: "8px 14px", background: "none", color: "#c9524b", border: "1px solid #c9524b", cursor: "pointer" }}>Reject</button>
+                  <button onClick={() => approve(s.id)} disabled={pendingIds.has(s.id)} style={{ flex: 1, fontSize: 11, padding: "8px 14px", background: gold, color: ink, border: "none", cursor: pendingIds.has(s.id) ? "default" : "pointer", opacity: pendingIds.has(s.id) ? 0.6 : 1 }}>
+                    {pendingIds.has(s.id) ? "Working…" : "Approve"}
+                  </button>
+                  <button onClick={() => reject(s.id)} disabled={pendingIds.has(s.id)} style={{ flex: 1, fontSize: 11, padding: "8px 14px", background: "none", color: "#c9524b", border: "1px solid #c9524b", cursor: pendingIds.has(s.id) ? "default" : "pointer", opacity: pendingIds.has(s.id) ? 0.6 : 1 }}>
+                    {pendingIds.has(s.id) ? "Working…" : "Reject"}
+                  </button>
                 </div>
+                {actionErrors[s.id] && <p style={{ color: "#c9524b", fontSize: 11, margin: 0 }}>{actionErrors[s.id]}</p>}
                 <input
                   placeholder="Rejection note (optional)"
                   value={draft(s.id).reviewNote} onChange={(e) => setDraft(s.id, { reviewNote: e.target.value })}
