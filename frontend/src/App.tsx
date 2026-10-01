@@ -1141,7 +1141,7 @@ function DesignRequestsPanel({ gold, goldHi, cream, stone, line, ink2 }) {
 // Approving publishes the submission straight into the live catalog (see
 // POST /api/artists/submissions/:id/approve); category/width are chosen
 // here since the artist's own submission form doesn't collect them.
-function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categoryOptions, onCountChange, onApproved }) {
+function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categoryOptions, onCountChange, onApproved, showToast }) {
   const [subs, setSubs] = useState(null); // null = loading
   const [error, setError] = useState("");
   const [drafts, setDrafts] = useState({}); // id -> { category, widthCm, reviewNote }
@@ -1178,12 +1178,17 @@ function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categor
     setPendingIds((s) => new Set(s).add(id));
     setActionErrors((e) => ({ ...e, [id]: "" }));
     try {
-      await apiFetch(`/artists/submissions/${id}/approve`, {
+      const { product } = await apiFetch(`/artists/submissions/${id}/approve`, {
         method: "POST",
         body: JSON.stringify({ category: d.category || undefined, widthCm: d.widthCm ? Number(d.widthCm) : undefined }),
       });
       refetch();
       onApproved?.();
+      // Approval publishes straight into the live catalog (Product.status
+      // defaults to ACTIVE) — confirm that outcome explicitly instead of
+      // just removing the row, since "approved" and "now live and sellable"
+      // read as two different things to an admin without this.
+      showToast?.(`"${product?.name || "Design"}" is now live in the shop and ready to sell.`);
     } catch (err) {
       setActionErrors((e) => ({ ...e, [id]: err instanceof ApiError ? err.message : "Couldn't approve — try again." }));
     } finally {
@@ -3619,7 +3624,7 @@ export default function App() {
                 <DesignRequestsPanel gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink2={ink2} />
                 <SubmissionsPanel
                   gold={gold} goldHi={goldHi} cream={cream} stone={stone} line={line} ink={ink} ink2={ink2}
-                  categoryOptions={categoryOptions} onCountChange={setPendingSubmissionCount} onApproved={refetchProducts}
+                  categoryOptions={categoryOptions} onCountChange={setPendingSubmissionCount} onApproved={refetchProducts} showToast={showToast}
                 />
               </>
             )}
