@@ -55,6 +55,31 @@ router.get("/dashboard", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// Every account on the platform, not just artists — the dashboard's stat
+// grid only ever showed a total count with nothing behind it. Useful on its
+// own, and also the quickest way to answer "is this account actually an
+// admin, and does its stored email look right" without a direct DB console.
+router.get("/users", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isAdmin: true,
+        isArtist: true,
+        createdAt: true,
+        _count: { select: { orders: true, submissions: true, products: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json({ users });
+  } catch (err) {
+    console.error("admin/users failed:", err);
+    res.status(500).json({ error: "Couldn't load users — try again." });
+  }
+});
+
 // Every artist account, regardless of whether they've published a live
 // product yet — the dashboard's "Artist Roster" used to be derived purely
 // from published Products, so someone who'd only just applied (no
