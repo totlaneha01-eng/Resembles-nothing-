@@ -78,18 +78,30 @@ const SIZE_TABLES = {
   QUADRIPTYCH: QUADRIPTYCH_SIZES,
 };
 
-function sizesFor(format) {
-  return SIZE_TABLES[format] || CANVAS_SIZES;
+// "70 × 100 cm" -> "100 × 70 cm"; "20 × 30 cm per panel" -> "30 × 20 cm per
+// panel" — same physical area, same price, just printed the other way.
+// Landscape isn't a separate size tier with its own price; it's the same
+// tier, rotated.
+function swapDims(dims) {
+  const m = dims.match(/^(\d+(?:\.\d+)?)\s*×\s*(\d+(?:\.\d+)?)\s*cm(.*)$/);
+  if (!m) return dims;
+  return `${m[2]} × ${m[1]} cm${m[3]}`;
 }
 
-function findSize(format, label) {
-  const match = sizesFor(format).find((s) => s.label === label);
+function sizesFor(format, orientation = "PORTRAIT") {
+  const base = SIZE_TABLES[format] || CANVAS_SIZES;
+  if (orientation !== "LANDSCAPE") return base;
+  return base.map((s) => ({ ...s, dims: swapDims(s.dims) }));
+}
+
+function findSize(format, label, orientation = "PORTRAIT") {
+  const match = sizesFor(format, orientation).find((s) => s.label === label);
   if (!match) throw new Error(`No "${label}" size tier for format ${format}`);
   return match;
 }
 
-function defaultSize(format, referencePriceINR) {
-  const options = sizesFor(format);
+function defaultSize(format, referencePriceINR, orientation = "PORTRAIT") {
+  const options = sizesFor(format, orientation);
   return options.find((s) => s.priceINR === referencePriceINR) || options[Math.floor(options.length / 2)];
 }
 

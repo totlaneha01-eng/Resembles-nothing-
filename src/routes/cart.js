@@ -32,7 +32,9 @@ router.post("/add", requireAuth, async (req, res) => {
     return res.status(400).json({ error: `This design isn't available as ${chosenFormat}` });
   }
 
-  const size = sizeLabel ? findSize(chosenFormat, sizeLabel) : defaultSize(chosenFormat, product.price);
+  const size = sizeLabel
+    ? findSize(chosenFormat, sizeLabel, product.orientation)
+    : defaultSize(chosenFormat, product.price, product.orientation);
 
   const item = await prisma.cartItem.upsert({
     where: { userId_productId_format_sizeLabel: { userId: req.user.id, productId, format: chosenFormat, sizeLabel: size.label } },

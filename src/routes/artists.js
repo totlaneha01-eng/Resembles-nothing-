@@ -64,6 +64,11 @@ router.post("/submissions/:id/approve", requireAuth, requireAdmin, async (req, r
     const category = req.body.category || "Abstract";
     const widthCm = req.body.widthCm || 30;
     const blurb = req.body.blurb || submission.description.slice(0, 80);
+    // Landscape-oriented uploads print fine as Tapestry/Canvas — they just
+    // need the admin to flag that at approval, same way category/widthCm
+    // already get filled in here (the frontend prefills this from the
+    // submitted image's real aspect ratio, but the admin can override it).
+    const orientation = req.body.orientation === "LANDSCAPE" ? "LANDSCAPE" : "PORTRAIT";
     // Every design approved from here on gets the same real, keyword-relevant
     // description/story as the hand-seeded catalogue — not a copy of the
     // artist's raw submission text — so content quality doesn't degrade as
@@ -85,6 +90,7 @@ router.post("/submissions/:id/approve", requireAuth, requireAdmin, async (req, r
           category,
           price: submission.suggestedPrice,
           widthCm,
+          orientation,
           images: [submission.imageUrl, submission.imageUrl, submission.imageUrl],
           blurb,
           description: seo.description,

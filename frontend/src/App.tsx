@@ -93,12 +93,22 @@ const QUADRIPTYCH_SIZES = [
   { label: "Portal", dims: "30 × 40 cm per panel", priceINR: 10699, priceUSD: 319 },
   { label: "Realm", dims: "50 × 70 cm per panel", priceINR: 15699, priceUSD: 429 },
 ];
+// "70 × 100 cm" -> "100 × 70 cm" — same tier, same price, printed the other
+// way. Mirrors src/lib/pricing.js's swapDims on the backend.
+function swapDims(dims) {
+  const m = dims.match(/^(\d+(?:\.\d+)?)\s*×\s*(\d+(?:\.\d+)?)\s*cm(.*)$/);
+  if (!m) return dims;
+  return `${m[2]} × ${m[1]} cm${m[3]}`;
+}
 function sizesFor(product) {
-  if (product.format === "quadriptych") return QUADRIPTYCH_SIZES;
-  if (product.format === "triptych") return TRIPTYCH_SIZES;
-  if (product.format === "diptych") return DIPTYCH_SIZES;
-  if (product.format === "canvas") return CANVAS_SIZES;
-  return TAPESTRY_SIZES;
+  const base =
+    product.format === "quadriptych" ? QUADRIPTYCH_SIZES :
+    product.format === "triptych" ? TRIPTYCH_SIZES :
+    product.format === "diptych" ? DIPTYCH_SIZES :
+    product.format === "canvas" ? CANVAS_SIZES :
+    TAPESTRY_SIZES;
+  if (product.orientation !== "LANDSCAPE") return base;
+  return base.map((s) => ({ ...s, dims: swapDims(s.dims) }));
 }
 // Which formats a design can actually be ordered in — real DB products carry
 // a `formats` array (see normalizeDbProduct); the hardcoded CATALOG demo
@@ -438,6 +448,7 @@ function normalizeDbProduct(p) {
     size: `${p.widthCm} cm · ${formatLabel}`,
     format: (primaryFormat || "").toLowerCase(),
     formats,
+    orientation: p.orientation || "PORTRAIT", // which way this prints — see sizesFor()
     editionSize: p.editionSize ?? 1,
     unitsSold: p.unitsSold ?? 0,
     widthCm: p.widthCm,
@@ -861,7 +872,7 @@ function IntroSplash({ onDone }) {
 // (POST /api/products and /api/products/bulk), unlike the rest of the admin
 // dashboard which is still session-only preview data.
 function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOptions, onAdded }) {
-  const [single, setSingle] = useState({ name: "", category: "", price: "", widthCm: "", formats: ["CANVAS"], editionSize: "1", imageUrl: "", blurb: "" });
+  const [single, setSingle] = useState({ name: "", category: "", price: "", widthCm: "", formats: ["CANVAS"], orientation: "PORTRAIT", editionSize: "1", imageUrl: "", blurb: "" });
   const [singleBusy, setSingleBusy] = useState(false);
   const [singleMsg, setSingleMsg] = useState("");
   const [singleOk, setSingleOk] = useState(false);
@@ -888,6 +899,7 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
           price: Math.round(Number(single.price) * 100), // rupees -> paise, backend stores paise
           widthCm: Number(single.widthCm),
           formats: single.formats,
+          orientation: single.orientation,
           editionSize: Number(single.editionSize) || 1,
           imageUrl: single.imageUrl,
           blurb: single.blurb,
@@ -895,7 +907,7 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
       });
       setSingleOk(true);
       setSingleMsg(`Added "${single.name}".`);
-      setSingle((s) => ({ name: "", category: s.category, price: "", widthCm: "", formats: s.formats, editionSize: s.editionSize, imageUrl: "", blurb: "" }));
+      setSingle((s) => ({ name: "", category: s.category, price: "", widthCm: "", formats: s.formats, orientation: s.orientation, editionSize: s.editionSize, imageUrl: "", blurb: "" }));
       onAdded();
     } catch (err) {
       setSingleOk(false);
@@ -980,6 +992,12 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
             ))}
           </div>
 
+          <label style={labelStyle}>Orientation — which way this actually prints (same price either way, just swaps each size tier's dimensions)</label>
+          <select style={inputStyle} value={single.orientation} onChange={(e) => setSingle((s) => ({ ...s, orientation: e.target.value }))}>
+            <option value="PORTRAIT">Portrait</option>
+            <option value="LANDSCAPE">Landscape</option>
+          </select>
+
           <label style={labelStyle}>Edition size — how many pieces total can ever sell (across any format/size). Leave at 1 for a single-piece edition.</label>
           <input type="number" min="1" style={inputStyle} value={single.editionSize} onChange={(e) => setSingle((s) => ({ ...s, editionSize: e.target.value }))} />
 
@@ -996,7 +1014,7 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
         <div style={{ border: `1px solid ${line}`, padding: 20 }}>
           <div style={{ fontSize: 13, color: cream, marginBottom: 6 }}>Bulk add — paste a JSON array</div>
           <p style={{ fontSize: 11, color: stone, marginBottom: 12, lineHeight: 1.5 }}>
-            One object per design: <code>name, category, price</code> (in ₹), <code>widthCm, formats</code> (array — any of TAPESTRY / CANVAS / DIPTYCH / TRIPTYCH / QUADRIPTYCH), <code>imageUrl, blurb</code>. <code>editionSize</code> is optional (defaults to 1 — a single-piece edition). Partial batches are fine — anything that fails is reported below without blocking the rest.
+            One object per design: <code>name, category, price</code> (in ₹), <code>widthCm, formats</code> (array — any of TAPESTRY / CANVAS / DIPTYCH / TRIPTYCH / QUADRIPTYCH), <code>imageUrl, blurb</code>. <code>editionSize</code> is optional (defaults to 1 — a single-piece edition). <code>orientation</code> is optional (PORTRAIT or LANDSCAPE, defaults to PORTRAIT — same price either way, just prints the other way round). Partial batches are fine — anything that fails is reported below without blocking the rest.
           </p>
           <textarea
             style={{ ...inputStyle, height: 190, fontFamily: "monospace", fontSize: 11.5, resize: "vertical" }}
@@ -1157,6 +1175,12 @@ function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categor
   // actually visible instead of the button just silently doing nothing.
   const [pendingIds, setPendingIds] = useState(() => new Set());
   const [actionErrors, setActionErrors] = useState({});
+  // Tapestry/Canvas can physically print either way — a design doesn't have
+  // to be portrait. Pre-fill each row's orientation by actually checking the
+  // submitted image's shape (not asking the artist to self-report it), so
+  // the common case needs zero admin input; the dropdown below is only for
+  // overriding a wrong guess (e.g. a square or ambiguous image).
+  const [detectedOrientation, setDetectedOrientation] = useState({});
 
   function refetch() {
     apiFetch("/artists/submissions/pending")
@@ -1164,13 +1188,21 @@ function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categor
         const list = data.submissions || [];
         setSubs(list);
         onCountChange?.(list.length);
+        for (const s of list) {
+          if (!s.imageUrl || detectedOrientation[s.id]) continue;
+          const img = new Image();
+          img.onload = () => {
+            setDetectedOrientation((d) => ({ ...d, [s.id]: img.naturalWidth > img.naturalHeight ? "LANDSCAPE" : "PORTRAIT" }));
+          };
+          img.src = s.imageUrl;
+        }
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load submissions."));
   }
   useEffect(() => { refetch(); }, []);
 
   function draft(id) {
-    return drafts[id] || { category: "", widthCm: "30", reviewNote: "" };
+    return drafts[id] || { category: "", widthCm: "30", orientation: "", reviewNote: "" };
   }
   function setDraft(id, patch) {
     setDrafts((d) => ({ ...d, [id]: { ...draft(id), ...patch } }));
@@ -1182,9 +1214,10 @@ function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categor
     setPendingIds((s) => new Set(s).add(id));
     setActionErrors((e) => ({ ...e, [id]: "" }));
     try {
+      const orientation = d.orientation || detectedOrientation[id] || "PORTRAIT";
       const { product } = await apiFetch(`/artists/submissions/${id}/approve`, {
         method: "POST",
-        body: JSON.stringify({ category: d.category || undefined, widthCm: d.widthCm ? Number(d.widthCm) : undefined }),
+        body: JSON.stringify({ category: d.category || undefined, widthCm: d.widthCm ? Number(d.widthCm) : undefined, orientation }),
       });
       refetch();
       onApproved?.();
@@ -1250,6 +1283,14 @@ function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categor
                   value={draft(s.id).widthCm} onChange={(e) => setDraft(s.id, { widthCm: e.target.value })}
                   style={{ background: ink2, border: `1px solid ${line}`, color: cream, padding: "6px 8px", fontSize: 11.5, outline: "none" }}
                 />
+                <select
+                  value={draft(s.id).orientation || detectedOrientation[s.id] || "PORTRAIT"}
+                  onChange={(e) => setDraft(s.id, { orientation: e.target.value })}
+                  style={{ background: ink2, border: `1px solid ${line}`, color: cream, padding: "6px 8px", fontSize: 11.5, outline: "none" }}
+                >
+                  <option value="PORTRAIT">Portrait{!draft(s.id).orientation && detectedOrientation[s.id] === "PORTRAIT" ? " (detected)" : ""}</option>
+                  <option value="LANDSCAPE">Landscape{!draft(s.id).orientation && detectedOrientation[s.id] === "LANDSCAPE" ? " (detected)" : ""}</option>
+                </select>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={() => approve(s.id)} disabled={pendingIds.has(s.id)} style={{ flex: 1, fontSize: 11, padding: "8px 14px", background: gold, color: ink, border: "none", cursor: pendingIds.has(s.id) ? "default" : "pointer", opacity: pendingIds.has(s.id) ? 0.6 : 1 }}>
                     {pendingIds.has(s.id) ? "Working…" : "Approve"}

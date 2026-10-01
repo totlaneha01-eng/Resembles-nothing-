@@ -93,6 +93,18 @@ enum ProductStatus {
   RETIRED
 }
 
+// Tapestry/Canvas (and the split-panel formats) are physically printable
+// either way — this doesn't add new formats, it tells src/lib/pricing.js
+// whether to present each size tier's dimensions as-is (portrait) or
+// swapped width/height (landscape), at the same price either way. Added
+// specifically so a landscape-oriented design doesn't have to be cropped
+// to fit a portrait print — see the frontend's product-page image box,
+// which already renders a landscape upload uncropped.
+enum ProductOrientation {
+  PORTRAIT
+  LANDSCAPE
+}
+
 model Product {
   id          String        @id @default(uuid())
   slug        String        @unique
@@ -100,6 +112,7 @@ model Product {
   category    String
   price       Int // in paise (₹1 = 100) — a reference/"from" price; the real per-order price comes from src/lib/pricing.js's format+size tiers
   widthCm     Int
+  orientation ProductOrientation @default(PORTRAIT) // which way this design actually prints — see the enum's own comment
   images      String[] // [far, close, exact] — matches the 3-image gallery in the frontend
   blurb       String
   description String        @db.Text
