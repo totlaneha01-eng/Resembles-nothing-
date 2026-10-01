@@ -44,6 +44,7 @@ function slugify(name) {
 
 const REQUIRED_FIELDS = ["name", "category", "price", "widthCm"];
 const VALID_FORMATS = ["TAPESTRY", "CANVAS", "DIPTYCH", "TRIPTYCH", "QUADRIPTYCH"];
+const VALID_ORIENTATIONS = ["PORTRAIT", "LANDSCAPE"];
 
 // Shared validation + defaulting for a single product payload, used by both
 // the single-create and bulk-create endpoints so they behave identically.
@@ -74,12 +75,16 @@ function prepareProductData(input) {
   const images = Array.isArray(input.images) && input.images.length ? input.images : input.imageUrl ? [input.imageUrl, input.imageUrl, input.imageUrl] : [];
   if (images.length === 0) throw new Error("images (array) or imageUrl is required");
 
+  const orientation = input.orientation ? String(input.orientation).toUpperCase() : "PORTRAIT";
+  if (!VALID_ORIENTATIONS.includes(orientation)) throw new Error(`orientation must be one of ${VALID_ORIENTATIONS.join(", ")} (got "${orientation}")`);
+
   return {
     slug: input.slug ? String(input.slug) : slugify(input.name),
     name: input.name,
     category: input.category,
     price,
     widthCm,
+    orientation,
     images,
     blurb: input.blurb || input.name,
     description: input.description || input.blurb || input.name,
