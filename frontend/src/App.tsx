@@ -365,6 +365,16 @@ function currency(n) {
   return "₹" + n.toLocaleString("en-IN");
 }
 
+// Descriptive, keyword-relevant alt text for a product image — derived from
+// fields every product already has (name/category/format), not hand-written
+// per design. Screen readers get a real description instead of just the
+// product name, and search crawlers get image-level context tying the
+// design to its category and the brand, on every single listing.
+function productAltText(p) {
+  const formatLabel = FORMAT_LABELS[(p.format || "").toUpperCase()] || "wall art";
+  return `${p.name} — ${p.category} ${formatLabel} wall art, one-of-one limited edition by resembles.nothing, India`;
+}
+
 // The homepage hero — 3 full-bleed banners with their own headline/CTA
 // baked into the image, replacing the old 3 arbitrarily-picked product
 // photos. `target` says where each banner's drawn button links to
@@ -616,7 +626,7 @@ function ProductCard({ p, gold, goldHi, cream, stone, priceFmt, openProduct, isS
         >{isSaved ? "♥" : "♡"}</button>
       )}
       <div style={{ aspectRatio: "3/4", overflow: "hidden" }}>
-        <img src={p.images[0]} alt={p.name} loading="lazy" decoding="async" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <img src={p.images[0]} alt={productAltText(p)} loading="lazy" decoding="async" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       </div>
       <div style={{ paddingTop: 12 }}>
         <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500, fontSize: 16, color: cream, margin: 0, lineHeight: 1.3 }}>{p.name}</h3>
@@ -775,7 +785,7 @@ function WallVisualizer({ catalog, initialDesign, addToCart, tokens }) {
                 <div key={p.id} onClick={() => setSelectedDesign(p)} style={{
                   cursor: "pointer", border: `2px solid ${selectedDesign.id === p.id ? gold : "transparent"}`, position: "relative"
                 }}>
-                  <img src={p.images[2]} alt={p.name} loading="lazy" decoding="async" style={{ width: "100%", aspectRatio: "3/4", objectFit: "cover", display: "block" }} />
+                  <img src={p.images[2]} alt={productAltText(p)} loading="lazy" decoding="async" style={{ width: "100%", aspectRatio: "3/4", objectFit: "cover", display: "block" }} />
                   <div style={{ fontSize: 10, color: stone, marginTop: 4, textAlign: "center" }}>{p.name}</div>
                 </div>
               ))}
@@ -2783,7 +2793,7 @@ export default function App() {
             {[...CATALOG, ...CATALOG].map((p, i) => (
               <div key={p.id + i} onClick={() => openProduct(p)} style={{ flexShrink: 0, width: 84, cursor: "pointer" }}>
                 <div style={{ width: 84, height: 104, border: `1px solid ${line}`, overflow: "hidden" }}>
-                  <img src={p.images[2]} alt={p.name} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img src={p.images[2]} alt={productAltText(p)} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
               </div>
             ))}
@@ -3336,7 +3346,7 @@ export default function App() {
               <div>
                 <div style={{ fontSize: 11, color: gold, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>{IMAGE_LABELS[activeImg]}</div>
                 <div style={{ border: `1px solid ${line}`, aspectRatio: "3/4", overflow: "hidden" }} className={`fade-up ${effectiveFormat === "TAPESTRY" ? "reveal-tapestry in-view" : "reveal-canvas in-view"}`} key={viewProduct.id}>
-                  <img src={viewProduct.images[activeImg]} alt={viewProduct.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img src={viewProduct.images[activeImg]} alt={productAltText(viewProduct)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
                 {viewProduct.images.length > 1 && (
                   <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
