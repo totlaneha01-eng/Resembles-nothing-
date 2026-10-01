@@ -131,14 +131,20 @@ async function bootstrapAdminFromEnv() {
   const emails = raw.split(",").map((e) => e.trim()).filter(Boolean);
   for (const email of emails) {
     try {
-      const user = await prisma.user.findUnique({ where: { email } });
+      // Case-insensitive: an exact match here silently does nothing if the
+      // account's actual stored email differs from this env var by case
+      // (e.g. autocapitalized on signup) — no error, no log beyond "no
+      // account found", easy to miss, and the result looks identical to a
+      // genuine typo. That account then never becomes admin and every
+      // admin-only action for them 403s indefinitely.
+      const user = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
       if (!user) {
         console.log(`Admin bootstrap: no account found for ${email} yet — sign up first, then redeploy.`);
         continue;
       }
       if (user.isAdmin) continue;
-      await prisma.user.update({ where: { email }, data: { isAdmin: true } });
-      console.log(`Admin bootstrap: ${email} is now an admin.`);
+      await prisma.user.update({ where: { id: user.id }, data: { isAdmin: true } });
+      console.log(`Admin bootstrap: ${user.email} is now an admin (matched ${email}).`);
     } catch (err) {
       console.error(`Admin bootstrap failed for ${email} (server still starting normally):`, err.message);
     }

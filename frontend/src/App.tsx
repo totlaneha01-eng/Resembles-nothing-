@@ -1277,18 +1277,22 @@ function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categor
 function AdminDashboardPanel({ gold, goldHi, cream, stone, line, ink, ink2, allProducts, openProduct, openArtist, onPendingSubmissionCount }) {
   const [data, setData] = useState(null); // null = loading
   const [artists, setArtists] = useState([]);
+  const [users, setUsers] = useState([]);
   const [ledger, setLedger] = useState([]);
   const [error, setError] = useState("");
+  const [userQuery, setUserQuery] = useState("");
 
   function refetch() {
     Promise.all([
       apiFetch("/admin/dashboard"),
       apiFetch("/admin/artists").catch(() => ({ artists: [] })),
+      apiFetch("/admin/users").catch(() => ({ users: [] })),
       apiFetch("/payouts/ledger").catch(() => ({ pending: [] })),
     ])
-      .then(([dashboard, artistsRes, payouts]) => {
+      .then(([dashboard, artistsRes, usersRes, payouts]) => {
         setData(dashboard);
         setArtists(artistsRes.artists || []);
+        setUsers(usersRes.users || []);
         setLedger(payouts.pending || []);
         onPendingSubmissionCount?.(dashboard.totals.pendingSubmissions);
       })
@@ -1324,6 +1328,9 @@ function AdminDashboardPanel({ gold, goldHi, cream, stone, line, ink, ink2, allP
     .sort((a, b) => b.payoutOwed - a.payoutOwed || b.submissionCount - a.submissionCount);
 
   const chartData = categoryBreakdown.map((c) => ({ category: c.category, count: c._count.category }));
+
+  const q = userQuery.trim().toLowerCase();
+  const filteredUsers = !q ? users : users.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
 
   return (
     <div>
@@ -1376,7 +1383,7 @@ function AdminDashboardPanel({ gold, goldHi, cream, stone, line, ink, ink2, allP
         </div>
 
         <div>
-          <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Artist Roster & Payouts</div>
+          <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Artist Roster & Payouts ({artistRoster.length})</div>
           {artistRoster.length === 0 ? (
             <p style={{ fontSize: 12.5, color: stone }}>No artist accounts yet.</p>
           ) : (
@@ -1393,6 +1400,44 @@ function AdminDashboardPanel({ gold, goldHi, cream, stone, line, ink, ink2, allP
             ))
           )}
         </div>
+      </div>
+
+      {/* Full user list — every account, not just artists. Shows the exact
+          stored email and isAdmin/isArtist flags for each one, which is the
+          fastest way to confirm whether ADMIN_BOOTSTRAP_EMAIL actually
+          matched the account you expected (see src/index.js's bootstrap —
+          now case-insensitive, but worth being able to verify directly). */}
+      <div style={{ marginTop: 44 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+          <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold }}>All Users ({users.length})</div>
+          <input
+            placeholder="Search name or email…" value={userQuery} onChange={(e) => setUserQuery(e.target.value)}
+            style={{ background: ink2, border: `1px solid ${line}`, color: cream, padding: "6px 10px", fontSize: 11.5, outline: "none", minWidth: 220 }}
+          />
+        </div>
+        {users.length === 0 ? (
+          <p style={{ fontSize: 12.5, color: stone }}>No accounts yet.</p>
+        ) : filteredUsers.length === 0 ? (
+          <p style={{ fontSize: 12.5, color: stone }}>No accounts match "{userQuery}".</p>
+        ) : (
+          <div style={{ maxHeight: 420, overflowY: "auto", border: `1px solid ${line}` }}>
+            {filteredUsers.map((u) => (
+              <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderBottom: `1px solid ${line}` }}>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: ink2, border: `1px solid ${line}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: goldHi, flexShrink: 0 }}>{u.name[0].toUpperCase()}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, color: cream }}>{u.name}</div>
+                  <div style={{ fontSize: 10.5, color: stone, fontFamily: "monospace" }}>{u.email}</div>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  {u.isAdmin && <span style={{ fontSize: 9.5, letterSpacing: "0.05em", textTransform: "uppercase", color: goldHi, border: `1px solid ${gold}`, padding: "2px 7px" }}>Admin</span>}
+                  {u.isArtist && <span style={{ fontSize: 9.5, letterSpacing: "0.05em", textTransform: "uppercase", color: stone, border: `1px solid ${line}`, padding: "2px 7px" }}>Artist</span>}
+                </div>
+                <div style={{ fontSize: 10.5, color: stone, textAlign: "right", minWidth: 90, flexShrink: 0 }}>{u._count.orders} order{u._count.orders === 1 ? "" : "s"}</div>
+                <div style={{ fontSize: 10, color: stone, whiteSpace: "nowrap", flexShrink: 0 }}>{new Date(u.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

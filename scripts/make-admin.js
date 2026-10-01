@@ -18,8 +18,16 @@ async function main() {
     process.exit(1);
   }
 
+  // Case-insensitive, same as the ADMIN_BOOTSTRAP_EMAIL path (src/index.js)
+  // — the account's stored email may differ from what's typed here by case.
+  const match = await prisma.user.findFirst({ where: { email: { equals: email.trim(), mode: "insensitive" } } });
+  if (!match) {
+    console.error(`No account found for ${email}`);
+    process.exit(1);
+  }
+
   const user = await prisma.user.update({
-    where: { email },
+    where: { id: match.id },
     data: { isAdmin: true },
   });
   console.log(`${user.email} is now an admin.`);

@@ -21,10 +21,15 @@ function signToken(userId) {
 // See routes/orders.js's /manual handler for the same pattern.
 router.post("/signup", async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, password } = req.body;
+    // Stored lowercase from here on so every future lookup (login, admin
+    // bootstrap, this same existence check) can match on a plain, exact
+    // email string. Older rows created before this may still have
+    // mixed-case emails — that's what the insensitive match below is for.
+    const email = String(req.body.email || "").trim().toLowerCase();
     if (!name || !email || !password) return res.status(400).json({ error: "Name, email, and password are required" });
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const existing = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
     if (existing) return res.status(409).json({ error: "An account already exists for this email" });
 
     const passwordHash = await bcrypt.hash(password, 12);
@@ -38,8 +43,12 @@ router.post("/signup", async (req, res) => {
 
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const user = await prisma.user.findUnique({ where: { email } });
+    const { password } = req.body;
+    // Case-insensitive on purpose — some accounts predate signup lowercasing
+    // its stored email, and "it won't let me log in" because of how a phone
+    // keyboard autocapitalized the first letter is a real support burden.
+    const email = String(req.body.email || "").trim();
+    const user = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
     if (!user) return res.status(401).json({ error: "Incorrect email or password" });
 
     const valid = await bcrypt.compare(password, user.passwordHash);
