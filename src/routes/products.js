@@ -4,30 +4,48 @@ const { requireAuth, requireAdmin } = require("../middleware/auth");
 
 const router = express.Router();
 
-// Public catalog — powers the shop grid and category filter.
+// Public catalog — powers the shop grid and category filter. Wrapped in
+// try/catch like every other route (see src/index.js's error-middleware
+// comment on why that matters on Express 4): without it, a DB-level error
+// here — e.g. the Prisma Client expecting a column a pending migration
+// hasn't added yet — doesn't 500, it hangs the request for the platform's
+// full function timeout (seen in production: a 300s hang before Vercel
+// itself returned a 504), which looks exactly like "the whole site is
+// down" to anyone browsing, since this is what the shop grid loads on
+// every page view.
 router.get("/", async (req, res) => {
-  const { category } = req.query;
-  const products = await prisma.product.findMany({
-    where: {
-      status: { not: "RETIRED" }, // retired designs (rights issues, pulled listings) stay in the DB for record-keeping but shouldn't show in the shop
-      ...(category && category !== "All" ? { category } : {}),
-    },
-    include: { artist: { select: { name: true } } },
-    orderBy: { createdAt: "desc" },
-  });
-  res.json({ products });
+  try {
+    const { category } = req.query;
+    const products = await prisma.product.findMany({
+      where: {
+        status: { not: "RETIRED" }, // retired designs (rights issues, pulled listings) stay in the DB for record-keeping but shouldn't show in the shop
+        ...(category && category !== "All" ? { category } : {}),
+      },
+      include: { artist: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json({ products });
+  } catch (err) {
+    console.error("products GET / failed:", err);
+    res.status(500).json({ error: "Couldn't load the catalog — try again." });
+  }
 });
 
 router.get("/:slug", async (req, res) => {
-  const product = await prisma.product.findUnique({
-    where: { slug: req.params.slug },
-    include: {
-      artist: { select: { id: true, name: true } },
-      reviews: { include: { user: { select: { name: true } } }, orderBy: { createdAt: "desc" } },
-    },
-  });
-  if (!product) return res.status(404).json({ error: "Design not found — it may have sold and been retired" });
-  res.json({ product });
+  try {
+    const product = await prisma.product.findUnique({
+      where: { slug: req.params.slug },
+      include: {
+        artist: { select: { id: true, name: true } },
+        reviews: { include: { user: { select: { name: true } } }, orderBy: { createdAt: "desc" } },
+      },
+    });
+    if (!product) return res.status(404).json({ error: "Design not found — it may have sold and been retired" });
+    res.json({ product });
+  } catch (err) {
+    console.error("products GET /:slug failed:", err);
+    res.status(500).json({ error: "Couldn't load that design — try again." });
+  }
 });
 
 function slugify(name) {
@@ -131,16 +149,26 @@ router.post("/bulk", requireAuth, requireAdmin, async (req, res) => {
 });
 
 router.patch("/:id", requireAuth, requireAdmin, async (req, res) => {
-  const product = await prisma.product.update({ where: { id: req.params.id }, data: req.body });
-  res.json({ product });
+  try {
+    const product = await prisma.product.update({ where: { id: req.params.id }, data: req.body });
+    res.json({ product });
+  } catch (err) {
+    console.error("products PATCH /:id failed:", err);
+    res.status(500).json({ error: "Couldn't update that product — try again." });
+  }
 });
 
 // Admin-only: remove a product entirely (e.g. cleaning up placeholder/seed
 // entries). Prefer PATCH status: "RETIRED" for a product that actually sold
 // or shouldn't be deleted for record-keeping — this is a hard delete.
 router.delete("/:id", requireAuth, requireAdmin, async (req, res) => {
-  await prisma.product.delete({ where: { id: req.params.id } });
-  res.json({ ok: true });
+  try {
+    await prisma.product.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("products DELETE /:id failed:", err);
+    res.status(500).json({ error: "Couldn't delete that product — try again." });
+  }
 });
 
 module.exports = router;
