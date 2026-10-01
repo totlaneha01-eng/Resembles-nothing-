@@ -46,61 +46,89 @@ router.get("/submissions/pending", requireAuth, requireAdmin, async (req, res) =
 });
 
 router.post("/submissions/:id/approve", requireAuth, requireAdmin, async (req, res) => {
-  const submission = await prisma.artistSubmission.findUnique({ where: { id: req.params.id } });
-  if (!submission) return res.status(404).json({ error: "Submission not found" });
+  try {
+    const submission = await prisma.artistSubmission.findUnique({ where: { id: req.params.id } });
+    if (!submission) return res.status(404).json({ error: "Submission not found" });
+    // Without this check, a slow request followed by an admin clicking
+    // Approve again (or a retried request) re-runs this whole handler for a
+    // submission that's already been turned into a product. The second
+    // attempt then hits Product.submissionId's unique constraint and throws
+    // — and since Express 4 doesn't forward a rejected promise from an async
+    // handler to the error middleware, that request used to just hang
+    // instead of failing visibly, which is what made the button look broken.
+    if (submission.status !== "PENDING") {
+      return res.status(409).json({ error: `Already ${submission.status.toLowerCase()} — refresh the submissions list.` });
+    }
 
-  const slug = slugify(submission.title);
-  const category = req.body.category || "Abstract";
-  const widthCm = req.body.widthCm || 30;
-  const blurb = req.body.blurb || submission.description.slice(0, 80);
-  // Every design approved from here on gets the same real, keyword-relevant
-  // description/story as the hand-seeded catalogue — not a copy of the
-  // artist's raw submission text — so content quality doesn't degrade as
-  // the catalogue scales past the original 217 products. See lib/seoContent.
-  const seo = generateProductSeoContent({
-    slug,
-    name: submission.title,
-    category,
-    blurb,
-    formats: submission.formats,
-    widthCm,
-  });
-
-  const product = await prisma.$transaction(async (tx) => {
-    const p = await tx.product.create({
-      data: {
-        slug,
-        name: submission.title,
-        category,
-        price: submission.suggestedPrice,
-        widthCm,
-        images: [submission.imageUrl, submission.imageUrl, submission.imageUrl],
-        blurb,
-        description: seo.description,
-        story: seo.story,
-        features: req.body.features || [],
-        formats: submission.formats,
-        editionSize: submission.editionSize,
-        artistId: submission.artistId,
-        submissionId: submission.id,
-      },
+    const slug = slugify(submission.title);
+    const category = req.body.category || "Abstract";
+    const widthCm = req.body.widthCm || 30;
+    const blurb = req.body.blurb || submission.description.slice(0, 80);
+    // Every design approved from here on gets the same real, keyword-relevant
+    // description/story as the hand-seeded catalogue — not a copy of the
+    // artist's raw submission text — so content quality doesn't degrade as
+    // the catalogue scales past the original 217 products. See lib/seoContent.
+    const seo = generateProductSeoContent({
+      slug,
+      name: submission.title,
+      category,
+      blurb,
+      formats: submission.formats,
+      widthCm,
     });
-    await tx.artistSubmission.update({
-      where: { id: submission.id },
-      data: { status: "APPROVED", reviewedById: req.user.id, reviewedAt: new Date() },
-    });
-    return p;
-  });
 
-  res.json({ product });
+    const product = await prisma.$transaction(async (tx) => {
+      const p = await tx.product.create({
+        data: {
+          slug,
+          name: submission.title,
+          category,
+          price: submission.suggestedPrice,
+          widthCm,
+          images: [submission.imageUrl, submission.imageUrl, submission.imageUrl],
+          blurb,
+          description: seo.description,
+          story: seo.story,
+          features: req.body.features || [],
+          formats: submission.formats,
+          editionSize: submission.editionSize,
+          artistId: submission.artistId,
+          submissionId: submission.id,
+        },
+      });
+      // Guards the same race at the DB level: if two approve requests for
+      // this submission are in flight at once, only one can flip PENDING ->
+      // APPROVED, so the other's update matches zero rows and throws —
+      // inside this transaction, that rolls back its product.create too,
+      // instead of leaving two products for one submission.
+      const updated = await tx.artistSubmission.updateMany({
+        where: { id: submission.id, status: "PENDING" },
+        data: { status: "APPROVED", reviewedById: req.user.id, reviewedAt: new Date() },
+      });
+      if (updated.count === 0) throw new Error("Submission was already reviewed");
+      return p;
+    });
+
+    res.json({ product });
+  } catch (err) {
+    console.error("artists/submissions/:id/approve failed:", err);
+    res.status(500).json({ error: "Couldn't approve that submission — try again." });
+  }
 });
 
 router.post("/submissions/:id/reject", requireAuth, requireAdmin, async (req, res) => {
-  const submission = await prisma.artistSubmission.update({
-    where: { id: req.params.id },
-    data: { status: "REJECTED", reviewNote: req.body.reviewNote, reviewedById: req.user.id, reviewedAt: new Date() },
-  });
-  res.json({ submission });
+  try {
+    const { count } = await prisma.artistSubmission.updateMany({
+      where: { id: req.params.id, status: "PENDING" },
+      data: { status: "REJECTED", reviewNote: req.body.reviewNote, reviewedById: req.user.id, reviewedAt: new Date() },
+    });
+    if (count === 0) return res.status(409).json({ error: "Already reviewed, or no longer pending — refresh the submissions list." });
+    const submission = await prisma.artistSubmission.findUnique({ where: { id: req.params.id } });
+    res.json({ submission });
+  } catch (err) {
+    console.error("artists/submissions/:id/reject failed:", err);
+    res.status(500).json({ error: "Couldn't reject that submission — try again." });
+  }
 });
 
 function slugify(title) {
