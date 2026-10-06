@@ -24,16 +24,43 @@ app.use(express.json({ limit: "8mb" }));
 // entries (frontend/src/App.tsx's CATALOG array, pre-dating the DB) aren't
 // in here since they have no DB row to read a slug from — a real gap, but
 // those predate SEO being set up at all and are a small, shrinking list.
+// Matches frontend/src/App.tsx's own slugify() — a path a crawler can
+// actually reach has to be byte-identical to the one the frontend builds
+// for /category/:slug and /artist/:slug (see openCategory/openArtist
+// there), not just "close enough".
+function slugifyForSitemap(s) {
+  return String(s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
 app.get("/sitemap.xml", async (req, res) => {
   try {
-    const products = await prisma.product.findMany({
-      where: { status: { in: ["ACTIVE", "SOLD"] } },
-      select: { slug: true, soldAt: true },
-    });
+    const [products, categoryRows, artistRows] = await Promise.all([
+      prisma.product.findMany({
+        where: { status: { in: ["ACTIVE", "SOLD"] } },
+        select: { slug: true, soldAt: true },
+      }),
+      // Every category actually live in the catalog right now — a theme
+      // page (see App.tsx's CATEGORY_SEO_COPY/openCategory) only belongs in
+      // the sitemap if there's something to show on it.
+      prisma.product.findMany({
+        where: { status: { in: ["ACTIVE", "SOLD"] } },
+        select: { category: true },
+        distinct: ["category"],
+      }),
+      // Every artist with at least one live/sold design — same reasoning:
+      // an artist who's only just applied has no product page to crawl to
+      // from here, so no profile page worth indexing yet either.
+      prisma.user.findMany({
+        where: { isArtist: true, products: { some: { status: { in: ["ACTIVE", "SOLD"] } } } },
+        select: { name: true },
+      }),
+    ]);
     const staticPaths = ["/", "/explore", "/worlds", "/about", "/shipping", "/contact", "/terms", "/privacy"];
     const today = new Date().toISOString().slice(0, 10);
     const urls = [
       ...staticPaths.map((p) => `  <url><loc>https://resemblesnothing.in${p}</loc><lastmod>${today}</lastmod></url>`),
+      ...categoryRows.map((c) => `  <url><loc>https://resemblesnothing.in/category/${slugifyForSitemap(c.category)}</loc><lastmod>${today}</lastmod></url>`),
+      ...artistRows.map((a) => `  <url><loc>https://resemblesnothing.in/artist/${slugifyForSitemap(a.name)}</loc><lastmod>${today}</lastmod></url>`),
       ...products.map((p) => {
         const lastmod = p.soldAt ? p.soldAt.toISOString().slice(0, 10) : today;
         return `  <url><loc>https://resemblesnothing.in/design/${p.slug}</loc><lastmod>${lastmod}</lastmod></url>`;
