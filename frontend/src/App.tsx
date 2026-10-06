@@ -1545,7 +1545,12 @@ function ArtistsPanel({ gold, goldHi, cream, stone, line, ink2, openArtist }) {
   const [ledger, setLedger] = useState([]);
   const [error, setError] = useState("");
   // Per-order-item draft overhead amount (₹, as typed) for the "finalize an
-  // ORIGINAL payout" form below — keyed by orderItem.id.
+  // ORIGINAL payout" form below — keyed by orderItem.id. Pre-filled with the
+  // typical transport+packaging+marketing cost per original sale (₹300–400,
+  // per the business) so the common case is "confirm" rather than "type a
+  // number from scratch" — still fully editable for a sale that costs more
+  // or less to ship/pack than usual.
+  const TYPICAL_ORIGINAL_OVERHEAD_INR = 350; // midpoint of the ₹300–400 typical range
   const [overheadDrafts, setOverheadDrafts] = useState({});
   const [finalizing, setFinalizing] = useState(() => new Set());
   const [finalizeErrors, setFinalizeErrors] = useState({});
@@ -1619,7 +1624,7 @@ function ArtistsPanel({ gold, goldHi, cream, stone, line, ink2, openArtist }) {
             Original Artwork Payouts Awaiting Overhead ({needsOverhead.length})
           </div>
           <p style={{ fontSize: 11.5, color: stone, marginBottom: 14, lineHeight: 1.6 }}>
-            Each original sale splits 50/50 between the artist and resembles.nothing, after the actual transport, packaging, and marketing cost for that sale. Enter that cost once it's known to compute and lock in the artist's share.
+            Each original sale splits 50/50 between the artist and resembles.nothing, after the actual transport, packaging, and marketing cost for that sale. Pre-filled with the typical ₹300–400 — adjust it for anything that cost more or less to ship and pack, then confirm to compute and lock in the artist's share.
           </p>
           <div style={{ border: `1px solid ${line}` }}>
             {needsOverhead.map((item) => (
@@ -1630,7 +1635,8 @@ function ArtistsPanel({ gold, goldHi, cream, stone, line, ink2, openArtist }) {
                 </div>
                 <input
                   type="number" min="0" placeholder="Overhead (₹)"
-                  value={overheadDrafts[item.id] || ""} onChange={(e) => setOverheadDrafts((d) => ({ ...d, [item.id]: e.target.value }))}
+                  value={overheadDrafts[item.id] ?? TYPICAL_ORIGINAL_OVERHEAD_INR}
+                  onChange={(e) => setOverheadDrafts((d) => ({ ...d, [item.id]: e.target.value }))}
                   style={{ width: 130, background: ink2, border: `1px solid ${line}`, color: cream, padding: "6px 8px", fontSize: 11.5, outline: "none" }}
                 />
                 <button
