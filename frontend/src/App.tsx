@@ -377,6 +377,35 @@ const CATEGORY_TAGLINES = {
   "Zodiac & Cosmic Signs": "Written in the stars.",
 };
 
+// One real paragraph per theme — shown as body copy on that category's own
+// page (see openCategory()/resolvePath's /category/:slug branch), not just
+// a one-line tagline. This is what gives each of the 19 themes genuine,
+// distinct, crawlable content instead of all 19 being the same "/" shop
+// grid with a client-side filter and nothing unique for a search engine to
+// index. Deliberately not keyword-stuffed — same reasoning as
+// src/lib/seoContent.js's product copy: varied, natural sentences, not
+// repeated exact-match phrases.
+const CATEGORY_SEO_COPY = {
+  "Myth & Divinity": "Deities, folklore, and the stories that outlived their storytellers — mythology wall art and spiritual pieces built for a puja corner, a meditation room, or any wall that wants a little reverence in it. Every piece here is one-of-one, made as a true original or a strictly capped edition, never mass-reprinted. Works as a heritage-forward housewarming gift or a serious collector's piece — tapestries, canvas prints, and split-canvas sets, made to order in India and shipped worldwide.",
+  "Celestial": "Moons, stars, galaxies, and the quiet vastness between them — celestial wall art for a bedroom that wants a little cosmos in it, a late-night study corner, or a meditation nook. Each design is sold as a strict limited edition, so the moon-and-stars print on your wall won't be the same one on someone else's. Available as tapestries, canvas prints, and multi-panel split-canvas sets, made to order and shipped worldwide.",
+  "Nature": "Landscapes, mountains, and outdoor scenes that make a home office feel like it has a view again. This collection leans into nature wall art and calming, grounded interiors — a reading nook by the window, a living room that needed to breathe. One-of-one by design: once a piece sells, it's retired from the catalogue for good, never reprinted. Tapestries, canvas, and split-canvas formats, made to order in India.",
+  "Animals": "Tigers, wildlife portraits, and animal wall art with real presence — for anyone who'd rather have a statement piece than stock photography on their wall. Each design is a true limited edition: sold once, then gone. Suits a nature-lover's reading nook as easily as a pet-lover's living room, and travels well as a gift for someone whose personality is basically \"has opinions about animals.\" Tapestry, canvas, and split-canvas formats, shipped worldwide.",
+  "People": "Portraits, figurative studies, and human-silhouette pieces built to be a room's actual focal point — a living-room centrepiece wall, a hallway gallery wall, the one thing a bedroom was missing. Every piece is sold as a strict one-of-one or capped edition, never reprinted once it's gone. Collected as much for the craft as the composition. Tapestry, canvas, and split-canvas formats, made to order in India and shipped worldwide.",
+  "Places": "Cityscapes, coastlines, and destinations rendered as wall art for anyone who'd rather be elsewhere — a traveller's bedroom, a home office with a window problem, a hostel-chic studio. Each design is a true limited edition, retired from the catalogue the moment it sells out, so the skyline on your wall stays yours. A favourite gift for someone who's always planning the next trip. Tapestry, canvas, and split-canvas sets, shipped worldwide.",
+  "Abstract": "Modern abstract wall art built around colour, shape, and the kind of contrast that makes people ask questions the second they walk in — a minimalist studio apartment's one bold piece, a creative workspace, a gallery wall's anchor. Every design is sold as a true one-of-one or a strictly capped edition, never mass-reprinted. A strong pick for collectors who want something that isn't a dorm-room poster. Tapestry, canvas, and split-canvas formats, made to order in India.",
+  "Vintage & Retro": "Throwback palettes, lived-in textures, and retro wall art for a room going for character over catalogue-perfect — a record-and-coffee corner, a studio apartment with some history to it. Every piece is a strict limited edition: once an edition sells out, it's retired for good, never reprinted. Works as a nostalgia gift for a specific decade as easily as it does a statement piece. Tapestry, canvas, and split-canvas formats, shipped worldwide.",
+  "Botanical": "Florals, leaves, and plant-inspired wall art for a sunlit reading corner, a plant parent's living room, or any space that wants to feel a little more green. Each design is sold once as a true one-of-one or a small capped edition — never reprinted after it sells out. A calming, grounded pick for a room refresh or a gift for someone whose actual plants keep dying. Tapestry, canvas, and split-canvas sets, made to order in India.",
+  "Symbols & Sigils": "Sacred geometry, symbolic motifs, and wall art with meaning built into the composition, not just decoration — a meditation room, a minimalist study, a hallway that wants substance over filler. Every piece is a true limited edition, retired from the catalogue once it sells out. Collected by anyone who wants the story behind a piece to matter as much as how it looks. Tapestry, canvas, and split-canvas formats, shipped worldwide.",
+  "Culture & Rituals": "Heritage motifs, traditional imagery, and culture-forward wall art for an entryway that sets the tone for the whole house, or a festival-season refresh. Each design is a strict one-of-one or capped edition — sold once, never reprinted. A housewarming or festival gift with real weight behind it, not a generic poster. Tapestry, canvas, and split-canvas sets, made to order in India and shipped worldwide.",
+  "Surreal": "Dreamlike compositions and surreal wall art built to make a bare wall do a double-take — a creative studio, a bedroom for someone who dreams in colour, a hallway that deserved more than filler. Every piece is sold as a true limited edition, retired from the catalogue the moment it's gone. A favourite for collectors who want conversation-starting over safe. Tapestry, canvas, and split-canvas formats, shipped worldwide.",
+  "Pop Culture": "Fandom pieces, trending motifs, and pop-culture wall art for a dorm room, a man-cave overdue for an upgrade, or a games-room backdrop. Every design is a true limited edition — once an edition sells out, it's gone from the catalogue for good, never reprinted. A strong gift for the fan who already owns everything official. Tapestry, canvas, and split-canvas formats, made to order in India and shipped worldwide.",
+  "Minimal": "Clean compositions, restrained palettes, and minimal wall art for a room that wants one quiet, deliberate statement instead of ten competing ones. Every piece here is sold as a true one-of-one or a strictly capped edition, never mass-reprinted once it's gone. A natural fit for a modern living room, a calm bedroom, or a home office that doesn't need more visual noise. Tapestry, canvas, and split-canvas sets, shipped worldwide.",
+  "Fantasy": "Mythical creatures, otherworldly scenes, and fantasy wall art for a reader's den, a gaming room that needed a backdrop, or anyone who never grew out of wanting a dragon on the wall. Each design is a true limited edition, retired from the catalogue once it sells out — never reprinted. Tapestry, canvas, and split-canvas formats, made to order in India and shipped worldwide.",
+  "Spirituality": "Meditation-forward imagery and spiritual wall art for a yoga room, a meditation corner, or a bedroom that needed calmer energy. Every piece is sold once as a true one-of-one or small capped edition — gone from the catalogue for good once it sells out. A calming gift for anyone building a mindfulness practice, not just decor for decor's sake. Tapestry, canvas, and split-canvas sets, shipped worldwide.",
+  "Human Emotions": "Expressive, feeling-first pieces — motivational wall art and emotional studies for a home office that needs a daily reminder, a gym corner, or a desk setup for someone chasing something specific. Every design is a true limited edition, retired from the catalogue the moment it sells out. A genuine gift for someone mid-becoming, not a generic quote poster. Tapestry, canvas, and split-canvas formats, made to order in India.",
+  "Zodiac & Cosmic Signs": "Star-sign motifs and astrology-inspired wall art for anyone who reads their horoscope before their inbox — a bedroom, a desk nook, a gift that actually feels personal instead of generic. Every piece is sold as a true one-of-one or a strictly capped edition, never reprinted once it's gone. Tapestry, canvas, and split-canvas sets, made to order in India and shipped worldwide.",
+};
+
 const FAQS = [
   { q: "Why do I have to pay the full amount upfront?", a: "Every piece is made specifically for your order, so we ask for prepayment before production starts. That's a direct UPI payment, confirmed by our team on WhatsApp — and the founder's own Instagram is linked on this site if you'd like to see the person accountable for your order." },
   { q: "Will my design ever be sold again?", a: "Each design has a set edition size — sometimes just one piece, sometimes a small run — decided when it's listed. Once every piece in that edition sells, it's retired from the catalog for good and won't be reprinted." },
@@ -406,6 +435,22 @@ function currency(n) {
 function productAltText(p) {
   const formatLabel = FORMAT_LABELS[(p.format || "").toUpperCase()] || "wall art";
   return `${p.name} — ${p.category} ${formatLabel} wall art, one-of-one limited edition by resembles.nothing, India`;
+}
+
+// Real, data-driven bio for an artist with no hand-written one in
+// ARTIST_BIOS — built from what their actual listed designs say about them
+// (which themes they work in), not an invented biographical claim. Most of
+// the artist roster falls back to this; a single generic sentence
+// ("A contributing artist on resembles.nothing.") gave every one of those
+// profile pages identical, near-empty SEO content.
+function artistFallbackBio(name, products) {
+  const mine = products.filter((p) => p.artist === name);
+  const categories = [...new Set(mine.map((p) => p.category))];
+  const categoryList =
+    categories.length > 2 ? `${categories.slice(0, -1).join(", ")}, and ${categories[categories.length - 1]}`
+    : categories.length === 2 ? `${categories[0]} and ${categories[1]}`
+    : categories[0] || "a range of themes";
+  return `${name}'s designs on resembles.nothing span ${categoryList} — each one sold as a true one-of-one or a strictly capped edition, made to order in India and shipped worldwide.`;
 }
 
 // The homepage hero — 3 full-bleed banners with their own headline/CTA
@@ -2562,8 +2607,16 @@ export default function App() {
       canonicalPath = `/design/${viewProduct.id}`;
     } else if (page === "artist" && viewArtist) {
       title = `${viewArtist} — Artist at resembles.nothing`;
-      description = `Designs by ${viewArtist} at resembles.nothing.`;
+      description = (ARTIST_BIOS[viewArtist]?.bio || artistFallbackBio(viewArtist, allProducts)).slice(0, 200);
       canonicalPath = `/artist/${slugify(viewArtist)}`;
+    } else if (page === "shop" && category !== "All") {
+      // Gives each of the 19 themes its own real title/description/URL
+      // instead of every category filter reporting the generic shop page's
+      // metadata — see CATEGORY_SEO_COPY and resolvePath's /category/:slug
+      // branch for the rest of this.
+      title = `${category} Wall Art, Tapestries & Canvas — resembles.nothing`;
+      description = (CATEGORY_SEO_COPY[category] || PAGE_SEO.shop.description).slice(0, 200);
+      canonicalPath = `/category/${slugify(category)}`;
     } else if (PAGE_SEO[page]) {
       title = PAGE_SEO[page].title;
       description = PAGE_SEO[page].description;
@@ -2587,7 +2640,57 @@ export default function App() {
       document.head.appendChild(canonical);
     }
     canonical.setAttribute("href", `https://resemblesnothing.in${canonicalPath}`);
-  }, [page, viewProduct, viewArtist]);
+
+    // Breadcrumbs — Home > Category > Design, or Home > Category, or just
+    // Home > Artist. Cheap structured-data win: tells a crawler the site's
+    // actual hierarchy instead of leaving every page looking like a
+    // same-level, disconnected URL.
+    const existingBreadcrumb = document.getElementById("breadcrumb-jsonld");
+    if (existingBreadcrumb) existingBreadcrumb.remove();
+    const crumbs = [{ "@type": "ListItem", position: 1, name: "Home", item: "https://resemblesnothing.in/" }];
+    if (page === "product" && viewProduct) {
+      crumbs.push({ "@type": "ListItem", position: 2, name: viewProduct.category, item: `https://resemblesnothing.in/category/${slugify(viewProduct.category)}` });
+      crumbs.push({ "@type": "ListItem", position: 3, name: viewProduct.name, item: `https://resemblesnothing.in${canonicalPath}` });
+    } else if (page === "shop" && category !== "All") {
+      crumbs.push({ "@type": "ListItem", position: 2, name: category, item: `https://resemblesnothing.in${canonicalPath}` });
+    } else if (page === "artist" && viewArtist) {
+      crumbs.push({ "@type": "ListItem", position: 2, name: viewArtist, item: `https://resemblesnothing.in${canonicalPath}` });
+    }
+    if (crumbs.length > 1) {
+      const breadcrumbScript = document.createElement("script");
+      breadcrumbScript.id = "breadcrumb-jsonld";
+      breadcrumbScript.type = "application/ld+json";
+      breadcrumbScript.textContent = JSON.stringify({ "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: crumbs });
+      document.head.appendChild(breadcrumbScript);
+    }
+
+    // FAQPage — the FAQ section (id="faq") is physically on the shop page
+    // regardless of category filter, so this applies there and nowhere else.
+    const existingFaq = document.getElementById("faq-jsonld");
+    if (existingFaq) existingFaq.remove();
+    if (page === "shop") {
+      const faqScript = document.createElement("script");
+      faqScript.id = "faq-jsonld";
+      faqScript.type = "application/ld+json";
+      faqScript.textContent = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: FAQS.map((f) => ({
+          "@type": "Question",
+          name: f.q,
+          acceptedAnswer: { "@type": "Answer", text: f.a },
+        })),
+      });
+      document.head.appendChild(faqScript);
+    }
+    // allProducts deliberately isn't a dependency here — it's a plain array
+    // literal rebuilt every render (dbProducts + CATALOG), not memoized, so
+    // depending on it would re-run this DOM-mutating effect (title, meta
+    // tags, three script tags) on every render instead of only on actual
+    // navigation. viewArtist is only ever set once a matching entry is
+    // already found in allProducts (openArtist/resolvePath), so the
+    // artist-bio/breadcrumb reads below always see current data anyway.
+  }, [page, viewProduct, viewArtist, category]);
 
   // Pushes a real URL without touching React state — every open*() below
   // calls this after setting its own state, and resolvePath() (initial
@@ -2662,6 +2765,23 @@ export default function App() {
     scrollToTopRobust();
     navigate(`/artist/${slugify(name)}`);
   }
+  // Switches a category while already on the shop page — just the filter
+  // state plus a real URL (/category/:slug, see resolvePath), no page
+  // transition or scroll jump since the category cards that trigger this
+  // are already in view.
+  function setCategoryNav(name) {
+    setCategory(name);
+    navigate(name === "All" ? "/" : `/category/${slugify(name)}`);
+  }
+  // Same, but for a category link reached from another page (Explore,
+  // Worlds, the quiz result, mobile nav) — switches to the shop page too
+  // and scrolls the grid into view, same as the old setCategory+
+  // goToShopSection pattern this replaces.
+  function openCategory(name) {
+    setCategoryNav(name);
+    setPage("shop");
+    requestAnimationFrame(() => document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" }));
+  }
   function openExplore() {
     setPage("explore");
     scrollToTopRobust();
@@ -2717,6 +2837,18 @@ export default function App() {
     if (artistMatch) {
       const found = [...new Set(allProducts.map((p) => p.artist))].find((n) => slugify(n) === artistMatch[1]);
       if (found) { openArtist(found); return true; }
+      return false;
+    }
+    const categoryMatch = path.match(/^\/category\/([^/]+)\/?$/);
+    if (categoryMatch) {
+      // Matched against whatever categories actually exist on live products
+      // (same set categoryOptions/the shop grid's own category cards use),
+      // not the fixed CATEGORIES list — an admin can add a product under a
+      // category outside that curated list (free-text field, see
+      // AddProductsPanel), and its card is clickable from the shop grid
+      // regardless, so a direct link to it has to resolve the same way.
+      const found = [...new Set(allProducts.map((p) => p.category))].find((c) => slugify(c) === categoryMatch[1]);
+      if (found) { setCategory(found); setPage("shop"); scrollToTopRobust(); return true; }
       return false;
     }
     return false; // unrecognized path — leave the default "shop" state as-is
@@ -3028,9 +3160,8 @@ export default function App() {
                   <div
                     key={c}
                     onClick={() => {
-                      setCategory(c);
+                      openCategory(c);
                       setShowMobileNav(false);
-                      goToShopSection("shop");
                     }}
                     style={{ padding: "7px 13px", border: `1px solid ${c === category ? gold : line}`, color: c === category ? goldHi : stone, fontSize: 12.5, cursor: "pointer" }}
                   >{c}</div>
@@ -3137,16 +3268,29 @@ export default function App() {
         </div>
       </section>
 
-      {/* SHOP */}
+      {/* SHOP — the site's single most-visited page (root "/") had no real
+          <h1> at all before this; every other page already had one. Also
+          doubles as each category's own on-page content (paired with its
+          own URL/title/meta via openCategory/setCategoryNav and the SEO
+          effect above) instead of a generic filter with nothing unique to
+          index. */}
       <section id="shop" style={{ padding: "80px 24px" }}>
         <div style={{ maxWidth: 1180, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", maxWidth: 600, margin: "0 auto 44px" }}>
-            <Eyebrow style={{ fontSize: 17 }}>The Catalogue</Eyebrow>
+          <div style={{ textAlign: "center", maxWidth: 680, margin: "0 auto 44px" }}>
+            <Eyebrow style={{ fontSize: 17 }}>{category === "All" ? "The Catalogue" : category}</Eyebrow>
+            <h1 style={{ fontSize: "clamp(1.7rem,3.2vw,2.4rem)", marginTop: 14, marginBottom: 16 }}>
+              {category === "All" ? "One-of-One Wall Art, Tapestries & Canvas" : `${category} Wall Art & Tapestries`}
+            </h1>
+            <p style={{ color: stone, fontSize: 14, lineHeight: 1.75 }}>
+              {category === "All"
+                ? "Every design below is made to order and sold as a true one-of-one or a strictly capped edition — once it's gone, it's gone for good. Tapestries, canvas prints, and split-canvas sets, made in India and shipped worldwide."
+                : (CATEGORY_SEO_COPY[category] || "")}
+            </p>
           </div>
 
           {category !== "All" && (
             <div style={{ textAlign: "center", marginBottom: 18 }}>
-              <span onClick={() => setCategory("All")} className="cat-chip" style={{ fontSize: 12, color: goldHi, letterSpacing: "0.04em" }}>
+              <span onClick={() => setCategoryNav("All")} className="cat-chip" style={{ fontSize: 12, color: goldHi, letterSpacing: "0.04em" }}>
                 ← View all pieces
               </span>
             </div>
@@ -3157,7 +3301,7 @@ export default function App() {
               const cardImg = CATEGORY_COVER_IMG[c] || allProducts.find((p) => p.category === c)?.images?.[0] || PLACEHOLDER_IMG;
               const active = c === category;
               return (
-                <div key={c} className="cat-card" onClick={() => setCategory(active ? "All" : c)} style={{ flex: "0 0 auto", width: 148, cursor: "pointer" }}>
+                <div key={c} className="cat-card" onClick={() => setCategoryNav(active ? "All" : c)} style={{ flex: "0 0 auto", width: 148, cursor: "pointer" }}>
                   <div className="cat-card-img" style={{
                     width: "100%", height: 188, borderRadius: "72px 72px 10px 10px", overflow: "hidden",
                     border: `1px solid ${active ? gold : line}`, opacity: active ? 1 : 0.88
@@ -3425,7 +3569,7 @@ export default function App() {
                 {categoryOptions.filter((c) => c !== "All").map((c) => {
                   const cardImg = CATEGORY_COVER_IMG[c] || allProducts.find((p) => p.category === c)?.images?.[0] || PLACEHOLDER_IMG;
                   return (
-                    <div key={c} className="pill-card" onClick={() => { setCategory(c); backToShop(); requestAnimationFrame(() => document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" })); }} style={{ flex: "0 0 auto", width: 138, cursor: "pointer" }}>
+                    <div key={c} className="pill-card" onClick={() => openCategory(c)} style={{ flex: "0 0 auto", width: 138, cursor: "pointer" }}>
                       <div className="pill-card-img" style={{ width: "100%", height: 220, borderRadius: 999, overflow: "hidden", border: `1px solid ${line}` }}>
                         <img src={cardImg} alt={c} loading="lazy" decoding="async" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       </div>
@@ -3470,7 +3614,7 @@ export default function App() {
                 const cardImg = CATEGORY_COVER_IMG[c] || allProducts.find((p) => p.category === c)?.images?.[0] || PLACEHOLDER_IMG;
                 const count = allProducts.filter((p) => p.category === c).length;
                 return (
-                  <div key={c} onClick={() => { setCategory(c); backToShop(); requestAnimationFrame(() => document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" })); }} style={{ cursor: "pointer" }} className="pill-card">
+                  <div key={c} onClick={() => openCategory(c)} style={{ cursor: "pointer" }} className="pill-card">
                     <div className="pill-card-img" style={{ width: "100%", aspectRatio: "3/4.4", borderRadius: 999, overflow: "hidden", border: `1px solid ${line}` }}>
                       <img src={cardImg} alt={c} loading="lazy" decoding="async" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_IMG; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     </div>
@@ -3854,7 +3998,7 @@ export default function App() {
               </div>
             </div>
             <p style={{ maxWidth: 620, color: stone, fontSize: 14, lineHeight: 1.75, marginBottom: 50 }}>
-              {ARTIST_BIOS[viewArtist]?.bio || "A contributing artist on resembles.nothing."}
+              {ARTIST_BIOS[viewArtist]?.bio || artistFallbackBio(viewArtist, allProducts)}
             </p>
 
             <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 20 }}>
@@ -4530,7 +4674,7 @@ export default function App() {
               <div style={{ fontSize: 12.5, color: goldHi, marginTop: 6, marginBottom: 18, fontStyle: "italic" }}>{quizResult.tag}</div>
               <p style={{ fontSize: 13.5, color: stone, lineHeight: 1.75, marginBottom: 26 }}>{quizResult.blurb}</p>
               <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-                <Btn onClick={() => { setCategory(quizResult.category); closeQuiz(); goToShopSection("shop"); }}>See My Matches</Btn>
+                <Btn onClick={() => { openCategory(quizResult.category); closeQuiz(); }}>See My Matches</Btn>
                 <Btn variant="ghost" onClick={resetQuiz}>Retake Quiz</Btn>
               </div>
               {user && <p style={{ fontSize: 10.5, color: stone, marginTop: 18 }}>Saved to your profile.</p>}
