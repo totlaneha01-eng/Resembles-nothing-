@@ -19,6 +19,13 @@ const GST_RATES = {
   DIPTYCH: 0.18,
   TRIPTYCH: 0.18,
   QUADRIPTYCH: 0.18,
+  // Confirmed with the business as HSN 9701 (original paintings/drawings/
+  // pastels) at 12% — different from every printed format above, which are
+  // reproductions, not the original work. Still worth a CA double-check
+  // before relying on this for an actual GST return: exemptions and
+  // thresholds can apply to an individual artist's original work that
+  // don't apply here (resembles.nothing resells it, doesn't make it).
+  ORIGINAL: 0.12,
 };
 
 const HSN_CODES = {
@@ -27,6 +34,7 @@ const HSN_CODES = {
   DIPTYCH: "49119100",
   TRIPTYCH: "49119100",
   QUADRIPTYCH: "49119100",
+  ORIGINAL: "9701",
 };
 
 // USD prices are understood to carry a buffer for US import duty on top of
@@ -35,6 +43,13 @@ const HSN_CODES = {
 // right now, it's baked into the priceUSD numbers below as-is. Recheck
 // before actually shipping to the US.
 const US_DUTY_BUFFER_RATE = 0.15; // placeholder, unfinalized — do not treat as final
+
+// Only used to derive a reference-only priceUSD for an ORIGINAL piece (the
+// artist sets just one real price, in INR) — same "never actually charged"
+// caveat as every other priceUSD in this file. Rough and static on purpose;
+// update by hand if it drifts far from the real rate, no need to wire up a
+// live FX feed for a number nothing bills against.
+const INR_PER_USD_APPROX = 87;
 
 const TAPESTRY_SIZES = [
   { label: "Signature", dims: "70 × 100 cm", priceINR: 111100, priceUSD: 79 },
@@ -88,20 +103,35 @@ function swapDims(dims) {
   return `${m[2]} × ${m[1]} cm${m[3]}`;
 }
 
-function sizesFor(format, orientation = "PORTRAIT") {
+// An ORIGINAL product has no size tiers — it's one specific physical piece,
+// one price, set by the artist rather than looked up from SIZE_TABLES.
+// `original` is the Product row itself (needs price/widthCm/heightCm);
+// required whenever format is "ORIGINAL", ignored otherwise.
+function originalSize(original) {
+  if (!original) throw new Error('format "ORIGINAL" requires the product\'s own price/dimensions');
+  return {
+    label: "Original",
+    dims: `${original.widthCm} × ${original.heightCm} cm`,
+    priceINR: original.price,
+    priceUSD: Math.round((original.price / 100 / INR_PER_USD_APPROX) * (1 + US_DUTY_BUFFER_RATE)),
+  };
+}
+
+function sizesFor(format, orientation = "PORTRAIT", original = null) {
+  if (format === "ORIGINAL") return [originalSize(original)];
   const base = SIZE_TABLES[format] || CANVAS_SIZES;
   if (orientation !== "LANDSCAPE") return base;
   return base.map((s) => ({ ...s, dims: swapDims(s.dims) }));
 }
 
-function findSize(format, label, orientation = "PORTRAIT") {
-  const match = sizesFor(format, orientation).find((s) => s.label === label);
+function findSize(format, label, orientation = "PORTRAIT", original = null) {
+  const match = sizesFor(format, orientation, original).find((s) => s.label === label);
   if (!match) throw new Error(`No "${label}" size tier for format ${format}`);
   return match;
 }
 
-function defaultSize(format, referencePriceINR, orientation = "PORTRAIT") {
-  const options = sizesFor(format, orientation);
+function defaultSize(format, referencePriceINR, orientation = "PORTRAIT", original = null) {
+  const options = sizesFor(format, orientation, original);
   return options.find((s) => s.priceINR === referencePriceINR) || options[Math.floor(options.length / 2)];
 }
 

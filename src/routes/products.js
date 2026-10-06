@@ -61,7 +61,7 @@ function slugify(name) {
 }
 
 const REQUIRED_FIELDS = ["name", "category", "price", "widthCm"];
-const VALID_FORMATS = ["TAPESTRY", "CANVAS", "DIPTYCH", "TRIPTYCH", "QUADRIPTYCH"];
+const VALID_FORMATS = ["TAPESTRY", "CANVAS", "DIPTYCH", "TRIPTYCH", "QUADRIPTYCH", "ORIGINAL"];
 const VALID_ORIENTATIONS = ["PORTRAIT", "LANDSCAPE"];
 
 // Shared validation + defaulting for a single product payload, used by both
@@ -79,16 +79,31 @@ function prepareProductData(input) {
   const invalid = formats.filter((f) => !VALID_FORMATS.includes(f));
   if (invalid.length) throw new Error(`format must be one of ${VALID_FORMATS.join(", ")} (got "${invalid.join(", ")}")`);
 
+  // ORIGINAL is a specific already-painted piece, not a reproducible
+  // design — it can't also be offered as a print alongside it (that'd mean
+  // "one physical object" and "print as many as you like" on the same row),
+  // and it needs a real height since there's no size-tier table to infer
+  // one from (see lib/pricing's originalSize).
+  const isOriginal = formats.includes("ORIGINAL");
+  if (isOriginal && formats.length > 1) throw new Error('formats: "ORIGINAL" can\'t be combined with any other format');
+
   const price = Number(input.price);
   const widthCm = Number(input.widthCm);
   if (!Number.isFinite(price) || price <= 0) throw new Error("price must be a positive number (in paise)");
   if (!Number.isFinite(widthCm) || widthCm <= 0) throw new Error("widthCm must be a positive number");
+
+  let heightCm = null;
+  if (isOriginal) {
+    heightCm = Number(input.heightCm);
+    if (!Number.isFinite(heightCm) || heightCm <= 0) throw new Error("heightCm is required (and must be a positive number) for an ORIGINAL piece");
+  }
 
   let editionSize = 1;
   if (input.editionSize !== undefined && input.editionSize !== null && input.editionSize !== "") {
     editionSize = Number(input.editionSize);
     if (!Number.isInteger(editionSize) || editionSize < 1) throw new Error("editionSize must be a whole number of 1 or more");
   }
+  if (isOriginal && editionSize !== 1) throw new Error("editionSize must be 1 for an ORIGINAL piece — it's one specific physical object");
 
   const images = Array.isArray(input.images) && input.images.length ? input.images : input.imageUrl ? [input.imageUrl, input.imageUrl, input.imageUrl] : [];
   if (images.length === 0) throw new Error("images (array) or imageUrl is required");
@@ -102,6 +117,7 @@ function prepareProductData(input) {
     category: input.category,
     price,
     widthCm,
+    heightCm,
     orientation,
     images,
     blurb: input.blurb || input.name,

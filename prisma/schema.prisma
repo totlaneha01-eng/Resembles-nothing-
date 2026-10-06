@@ -85,6 +85,7 @@ enum ProductFormat {
   DIPTYCH // split canvas, 2 panels
   TRIPTYCH // split canvas, 3 panels
   QUADRIPTYCH // split canvas, 4 panels
+  ORIGINAL // a specific, already-painted physical piece — not a reproducible print. See the enum's distinct handling in src/lib/pricing.js: no size tiers, the artist's own price, Product.heightCm instead of a looked-up dims string.
 }
 
 enum ProductStatus {
@@ -112,6 +113,7 @@ model Product {
   category    String
   price       Int // in paise (₹1 = 100) — a reference/"from" price; the real per-order price comes from src/lib/pricing.js's format+size tiers
   widthCm     Int
+  heightCm    Int? // only set (and only meaningful) for formats: ["ORIGINAL"] — the real height of the specific physical piece, since there's no size-tier table to derive it from
   orientation ProductOrientation @default(PORTRAIT) // which way this design actually prints — see the enum's own comment
   images      String[] // [far, close, exact] — matches the 3-image gallery in the frontend
   blurb       String
@@ -158,6 +160,9 @@ model ArtistSubmission {
   title          String
   description    String           @db.Text
   formats        ProductFormat[]
+  isOriginal     Boolean          @default(false) // a specific, already-painted piece rather than a design to be printed — see ProductFormat.ORIGINAL
+  widthCm        Int? // the actual piece's real width — only meaningful when isOriginal; a printed design's width is an admin/catalog decision made at approval instead (see routes/artists.js)
+  heightCm       Int? // same, for height
   editionSize    Int              @default(1) // how many total pieces the artist wants to make of this design
   suggestedPrice Int
   imageUrl       String
@@ -321,7 +326,8 @@ model OrderItem {
   priceUSD           Int // reference value only — never charged
   artistId           String?
   artist             User?        @relation("ArtistPayouts", fields: [artistId], references: [id])
-  artistPayoutAmount Int?
+  artistPayoutAmount Int? // for format: ORIGINAL, stays null until an admin finalizes it with the real overhead (see artistPayoutOverheadAmount) — it isn't a fixed % of priceINR like a print's commission, so it can't be computed at order time
+  artistPayoutOverheadAmount Int? // ORIGINAL only — actual transport + packaging + marketing cost for this specific sale, entered by an admin; deducted from priceINR before the 50/50 artist split
   artistPayoutStatus PayoutStatus @default(NOT_APPLICABLE)
   artistPayoutPaidAt DateTime?
 }
