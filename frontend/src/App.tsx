@@ -100,7 +100,29 @@ function swapDims(dims) {
   if (!m) return dims;
   return `${m[2]} × ${m[1]} cm${m[3]}`;
 }
+// Mirrors src/lib/pricing.js's INR_PER_USD_APPROX — reference-only display
+// for an ORIGINAL piece's USD price (the artist sets one real price, in
+// INR; nothing is ever actually charged in USD, see currency()).
+const INR_PER_USD_APPROX = 87;
+const US_DUTY_BUFFER_RATE = 0.15;
+
+// An ORIGINAL product has no size tiers — one specific physical piece, one
+// price, set by the artist, with its real width/height instead of a
+// looked-up dims string. Mirrors src/lib/pricing.js's originalSize.
+function isOriginalFormat(product) {
+  return product.format === "original";
+}
 function sizesFor(product) {
+  if (isOriginalFormat(product)) {
+    const width = product.widthCm || 100;
+    const height = product.heightCm || 100;
+    return [{
+      label: "Original",
+      dims: `${width} × ${height} cm`,
+      priceINR: product.price,
+      priceUSD: Math.round((product.price / INR_PER_USD_APPROX) * (1 + US_DUTY_BUFFER_RATE)),
+    }];
+  }
   const base =
     product.format === "quadriptych" ? QUADRIPTYCH_SIZES :
     product.format === "triptych" ? TRIPTYCH_SIZES :
@@ -122,6 +144,7 @@ const FORMAT_LABELS = {
   DIPTYCH: "Split Canvas — Diptych",
   TRIPTYCH: "Split Canvas — Triptych",
   QUADRIPTYCH: "Split Canvas — Quadriptych",
+  ORIGINAL: "Original Artwork",
 };
 // A product object with `format` swapped to whichever one is currently
 // selected, so sizesFor/defaultSizeFor/isTapestryFormat all work unchanged.
@@ -437,6 +460,7 @@ function normalizeDbProduct(p) {
     DIPTYCH: "Split Canvas — Diptych",
     TRIPTYCH: "Split Canvas — Triptych",
     QUADRIPTYCH: "Split Canvas — Quadriptych",
+    ORIGINAL: "Original Artwork",
   }[primaryFormat] || primaryFormat;
   const images = Array.isArray(p.images) && p.images.length ? p.images : [PLACEHOLDER_IMG, PLACEHOLDER_IMG, PLACEHOLDER_IMG];
   return {
@@ -452,6 +476,7 @@ function normalizeDbProduct(p) {
     editionSize: p.editionSize ?? 1,
     unitsSold: p.unitsSold ?? 0,
     widthCm: p.widthCm,
+    heightCm: p.heightCm ?? null, // only meaningful for an ORIGINAL piece — see sizesFor()
     images,
     blurb: p.blurb,
     desc: p.description,
@@ -872,7 +897,7 @@ function IntroSplash({ onDone }) {
 // (POST /api/products and /api/products/bulk), unlike the rest of the admin
 // dashboard which is still session-only preview data.
 function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOptions, onAdded }) {
-  const [single, setSingle] = useState({ name: "", category: "", price: "", widthCm: "", formats: ["CANVAS"], orientation: "PORTRAIT", editionSize: "1", imageUrl: "", blurb: "" });
+  const [single, setSingle] = useState({ name: "", category: "", price: "", widthCm: "", heightCm: "", formats: ["CANVAS"], orientation: "PORTRAIT", editionSize: "1", imageUrl: "", blurb: "" });
   const [singleBusy, setSingleBusy] = useState(false);
   const [singleMsg, setSingleMsg] = useState("");
   const [singleOk, setSingleOk] = useState(false);
@@ -891,6 +916,7 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
     setSingleMsg("");
     try {
       if (single.formats.length === 0) throw new ApiError("Pick at least one format.", 400);
+      const isOriginal = single.formats.includes("ORIGINAL");
       await apiFetch("/products", {
         method: "POST",
         body: JSON.stringify({
@@ -898,16 +924,17 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
           category: single.category,
           price: Math.round(Number(single.price) * 100), // rupees -> paise, backend stores paise
           widthCm: Number(single.widthCm),
+          heightCm: isOriginal ? Number(single.heightCm) : undefined,
           formats: single.formats,
           orientation: single.orientation,
-          editionSize: Number(single.editionSize) || 1,
+          editionSize: isOriginal ? 1 : Number(single.editionSize) || 1,
           imageUrl: single.imageUrl,
           blurb: single.blurb,
         }),
       });
       setSingleOk(true);
       setSingleMsg(`Added "${single.name}".`);
-      setSingle((s) => ({ name: "", category: s.category, price: "", widthCm: "", formats: s.formats, orientation: s.orientation, editionSize: s.editionSize, imageUrl: "", blurb: "" }));
+      setSingle((s) => ({ name: "", category: s.category, price: "", widthCm: "", heightCm: "", formats: s.formats, orientation: s.orientation, editionSize: s.editionSize, imageUrl: "", blurb: "" }));
       onAdded();
     } catch (err) {
       setSingleOk(false);
@@ -969,14 +996,15 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
             </div>
           </div>
 
-          <label style={labelStyle}>Available as — pick one or more</label>
-          <div style={{ display: "flex", gap: 16, marginBottom: 10 }}>
+          <label style={labelStyle}>Available as — pick one or more (or pick "Original" alone — it can't combine with a print format)</label>
+          <div style={{ display: "flex", gap: 16, marginBottom: 10, flexWrap: "wrap" }}>
             {[
               ["TAPESTRY", "Tapestry"],
               ["CANVAS", "Canvas (single panel)"],
               ["DIPTYCH", "Split canvas — Diptych (2 panels)"],
               ["TRIPTYCH", "Split canvas — Triptych (3 panels)"],
               ["QUADRIPTYCH", "Split canvas — Quadriptych (4 panels)"],
+              ["ORIGINAL", "Original — already-painted, one physical piece"],
             ].map(([val, label]) => (
               <label key={val} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: cream, cursor: "pointer" }}>
                 <input
@@ -984,7 +1012,13 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
                   checked={single.formats.includes(val)}
                   onChange={(e) => setSingle((s) => ({
                     ...s,
-                    formats: e.target.checked ? [...s.formats, val] : s.formats.filter((f) => f !== val),
+                    // ORIGINAL can't be combined with anything else (see
+                    // products.js's prepareProductData) — picking it clears
+                    // every other format, and picking a print format while
+                    // ORIGINAL is selected drops ORIGINAL.
+                    formats: !e.target.checked
+                      ? s.formats.filter((f) => f !== val)
+                      : val === "ORIGINAL" ? ["ORIGINAL"] : [...s.formats.filter((f) => f !== "ORIGINAL"), val],
                   }))}
                 />
                 {label}
@@ -992,14 +1026,23 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
             ))}
           </div>
 
-          <label style={labelStyle}>Orientation — which way this actually prints (same price either way, just swaps each size tier's dimensions)</label>
-          <select style={inputStyle} value={single.orientation} onChange={(e) => setSingle((s) => ({ ...s, orientation: e.target.value }))}>
-            <option value="PORTRAIT">Portrait</option>
-            <option value="LANDSCAPE">Landscape</option>
-          </select>
+          {single.formats.includes("ORIGINAL") ? (
+            <>
+              <label style={labelStyle}>Height (cm) — the piece's real height; Width above is its real width</label>
+              <input required type="number" min="1" style={inputStyle} value={single.heightCm} onChange={(e) => setSingle((s) => ({ ...s, heightCm: e.target.value }))} />
+            </>
+          ) : (
+            <>
+              <label style={labelStyle}>Orientation — which way this actually prints (same price either way, just swaps each size tier's dimensions)</label>
+              <select style={inputStyle} value={single.orientation} onChange={(e) => setSingle((s) => ({ ...s, orientation: e.target.value }))}>
+                <option value="PORTRAIT">Portrait</option>
+                <option value="LANDSCAPE">Landscape</option>
+              </select>
 
-          <label style={labelStyle}>Edition size — how many pieces total can ever sell (across any format/size). Leave at 1 for a single-piece edition.</label>
-          <input type="number" min="1" style={inputStyle} value={single.editionSize} onChange={(e) => setSingle((s) => ({ ...s, editionSize: e.target.value }))} />
+              <label style={labelStyle}>Edition size — how many pieces total can ever sell (across any format/size). Leave at 1 for a single-piece edition.</label>
+              <input type="number" min="1" style={inputStyle} value={single.editionSize} onChange={(e) => setSingle((s) => ({ ...s, editionSize: e.target.value }))} />
+            </>
+          )}
 
           <label style={labelStyle}>Image URL</label>
           <input required type="url" placeholder="https://…" style={inputStyle} value={single.imageUrl} onChange={(e) => setSingle((s) => ({ ...s, imageUrl: e.target.value }))} />
@@ -1014,7 +1057,7 @@ function AddProductsPanel({ gold, goldHi, cream, stone, line, ink2, categoryOpti
         <div style={{ border: `1px solid ${line}`, padding: 20 }}>
           <div style={{ fontSize: 13, color: cream, marginBottom: 6 }}>Bulk add — paste a JSON array</div>
           <p style={{ fontSize: 11, color: stone, marginBottom: 12, lineHeight: 1.5 }}>
-            One object per design: <code>name, category, price</code> (in ₹), <code>widthCm, formats</code> (array — any of TAPESTRY / CANVAS / DIPTYCH / TRIPTYCH / QUADRIPTYCH), <code>imageUrl, blurb</code>. <code>editionSize</code> is optional (defaults to 1 — a single-piece edition). <code>orientation</code> is optional (PORTRAIT or LANDSCAPE, defaults to PORTRAIT — same price either way, just prints the other way round). Partial batches are fine — anything that fails is reported below without blocking the rest.
+            One object per design: <code>name, category, price</code> (in ₹), <code>widthCm, formats</code> (array — any of TAPESTRY / CANVAS / DIPTYCH / TRIPTYCH / QUADRIPTYCH / ORIGINAL), <code>imageUrl, blurb</code>. <code>editionSize</code> is optional (defaults to 1 — a single-piece edition). <code>orientation</code> is optional (PORTRAIT or LANDSCAPE, defaults to PORTRAIT — same price either way, just prints the other way round). <code>formats: ["ORIGINAL"]</code> needs <code>heightCm</code> too (it's own physical piece, not a print) and can't combine with any other format.
           </p>
           <textarea
             style={{ ...inputStyle, height: 190, fontFamily: "monospace", fontSize: 11.5, resize: "vertical" }}
@@ -1188,6 +1231,20 @@ function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categor
         const list = data.submissions || [];
         setSubs(list);
         onCountChange?.(list.length);
+        // An original's width/height default to what the artist actually
+        // stated for that specific physical piece, not the generic "30"
+        // print default — seed the draft once per submission so the input
+        // starts pre-filled instead of needing a fragile "has this been
+        // touched yet" check at render time.
+        setDrafts((d) => {
+          const next = { ...d };
+          for (const s of list) {
+            if (s.isOriginal && !next[s.id]) {
+              next[s.id] = { category: "", widthCm: s.widthCm ? String(s.widthCm) : "", heightCm: s.heightCm ? String(s.heightCm) : "", orientation: "", reviewNote: "" };
+            }
+          }
+          return next;
+        });
         for (const s of list) {
           if (!s.imageUrl || detectedOrientation[s.id]) continue;
           const img = new Image();
@@ -1208,16 +1265,18 @@ function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categor
     setDrafts((d) => ({ ...d, [id]: { ...draft(id), ...patch } }));
   }
 
-  async function approve(id) {
+  async function approve(id, submission) {
     if (pendingIds.has(id)) return;
     const d = draft(id);
     setPendingIds((s) => new Set(s).add(id));
     setActionErrors((e) => ({ ...e, [id]: "" }));
     try {
       const orientation = d.orientation || detectedOrientation[id] || "PORTRAIT";
+      const widthCm = d.widthCm ? Number(d.widthCm) : submission?.isOriginal ? submission.widthCm : undefined;
+      const heightCm = submission?.isOriginal ? (d.heightCm ? Number(d.heightCm) : submission.heightCm) : undefined;
       const { product } = await apiFetch(`/artists/submissions/${id}/approve`, {
         method: "POST",
-        body: JSON.stringify({ category: d.category || undefined, widthCm: d.widthCm ? Number(d.widthCm) : undefined, orientation }),
+        body: JSON.stringify({ category: d.category || undefined, widthCm, heightCm, orientation }),
       });
       refetch();
       onApproved?.();
@@ -1263,9 +1322,12 @@ function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categor
             <div key={s.id} style={{ display: "flex", gap: 14, alignItems: "flex-start", border: `1px solid ${line}`, padding: 14, marginBottom: 10, flexWrap: "wrap" }}>
               {s.imageUrl && <img src={s.imageUrl} alt="" style={{ width: 50, height: 62, objectFit: "cover", flexShrink: 0 }} />}
               <div style={{ flex: 1, minWidth: 160 }}>
-                <div style={{ fontSize: 13.5, color: cream }}>{s.title}</div>
+                <div style={{ fontSize: 13.5, color: cream }}>
+                  {s.title}
+                  {s.isOriginal && <span style={{ marginLeft: 8, fontSize: 9.5, letterSpacing: "0.05em", textTransform: "uppercase", color: goldHi, border: `1px solid ${gold}`, padding: "2px 7px" }}>Original</span>}
+                </div>
                 <div style={{ fontSize: 11, color: stone, marginTop: 2 }}>
-                  {s.artist?.name || "Unknown artist"} · {(s.formats || []).join(" + ").toLowerCase()} · {currency(s.suggestedPrice)}
+                  {s.artist?.name || "Unknown artist"} · {s.isOriginal ? `original piece, ${s.widthCm || "?"} × ${s.heightCm || "?"}cm` : (s.formats || []).join(" + ").toLowerCase()} · {currency(s.suggestedPrice)}
                 </div>
                 <div style={{ fontSize: 11.5, color: stone, marginTop: 6, lineHeight: 1.5 }}>{s.description}</div>
               </div>
@@ -1278,21 +1340,42 @@ function SubmissionsPanel({ gold, goldHi, cream, stone, line, ink, ink2, categor
                 <datalist id={`submission-category-${s.id}`}>
                   {categoryOptions.filter((c) => c !== "All").map((c) => <option key={c} value={c} />)}
                 </datalist>
-                <input
-                  type="number" min="1" placeholder="Width (cm)"
-                  value={draft(s.id).widthCm} onChange={(e) => setDraft(s.id, { widthCm: e.target.value })}
-                  style={{ background: ink2, border: `1px solid ${line}`, color: cream, padding: "6px 8px", fontSize: 11.5, outline: "none" }}
-                />
-                <select
-                  value={draft(s.id).orientation || detectedOrientation[s.id] || "PORTRAIT"}
-                  onChange={(e) => setDraft(s.id, { orientation: e.target.value })}
-                  style={{ background: ink2, border: `1px solid ${line}`, color: cream, padding: "6px 8px", fontSize: 11.5, outline: "none" }}
-                >
-                  <option value="PORTRAIT">Portrait{!draft(s.id).orientation && detectedOrientation[s.id] === "PORTRAIT" ? " (detected)" : ""}</option>
-                  <option value="LANDSCAPE">Landscape{!draft(s.id).orientation && detectedOrientation[s.id] === "LANDSCAPE" ? " (detected)" : ""}</option>
-                </select>
+                {s.isOriginal ? (
+                  // The real width/height are facts about this specific
+                  // physical piece — pre-filled from what the artist stated
+                  // at submission (see refetch's draft-seeding), editable
+                  // here only to fix a mistake.
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      type="number" min="1" placeholder="Width (cm)"
+                      value={draft(s.id).widthCm} onChange={(e) => setDraft(s.id, { widthCm: e.target.value })}
+                      style={{ flex: 1, background: ink2, border: `1px solid ${line}`, color: cream, padding: "6px 8px", fontSize: 11.5, outline: "none" }}
+                    />
+                    <input
+                      type="number" min="1" placeholder="Height (cm)"
+                      value={draft(s.id).heightCm} onChange={(e) => setDraft(s.id, { heightCm: e.target.value })}
+                      style={{ flex: 1, background: ink2, border: `1px solid ${line}`, color: cream, padding: "6px 8px", fontSize: 11.5, outline: "none" }}
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="number" min="1" placeholder="Width (cm)"
+                      value={draft(s.id).widthCm} onChange={(e) => setDraft(s.id, { widthCm: e.target.value })}
+                      style={{ background: ink2, border: `1px solid ${line}`, color: cream, padding: "6px 8px", fontSize: 11.5, outline: "none" }}
+                    />
+                    <select
+                      value={draft(s.id).orientation || detectedOrientation[s.id] || "PORTRAIT"}
+                      onChange={(e) => setDraft(s.id, { orientation: e.target.value })}
+                      style={{ background: ink2, border: `1px solid ${line}`, color: cream, padding: "6px 8px", fontSize: 11.5, outline: "none" }}
+                    >
+                      <option value="PORTRAIT">Portrait{!draft(s.id).orientation && detectedOrientation[s.id] === "PORTRAIT" ? " (detected)" : ""}</option>
+                      <option value="LANDSCAPE">Landscape{!draft(s.id).orientation && detectedOrientation[s.id] === "LANDSCAPE" ? " (detected)" : ""}</option>
+                    </select>
+                  </>
+                )}
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => approve(s.id)} disabled={pendingIds.has(s.id)} style={{ flex: 1, fontSize: 11, padding: "8px 14px", background: gold, color: ink, border: "none", cursor: pendingIds.has(s.id) ? "default" : "pointer", opacity: pendingIds.has(s.id) ? 0.6 : 1 }}>
+                  <button onClick={() => approve(s.id, s)} disabled={pendingIds.has(s.id)} style={{ flex: 1, fontSize: 11, padding: "8px 14px", background: gold, color: ink, border: "none", cursor: pendingIds.has(s.id) ? "default" : "pointer", opacity: pendingIds.has(s.id) ? 0.6 : 1 }}>
                     {pendingIds.has(s.id) ? "Working…" : "Approve"}
                   </button>
                   <button onClick={() => reject(s.id)} disabled={pendingIds.has(s.id)} style={{ flex: 1, fontSize: 11, padding: "8px 14px", background: "none", color: "#c9524b", border: "1px solid #c9524b", cursor: pendingIds.has(s.id) ? "default" : "pointer", opacity: pendingIds.has(s.id) ? 0.6 : 1 }}>
@@ -1461,8 +1544,13 @@ function ArtistsPanel({ gold, goldHi, cream, stone, line, ink2, openArtist }) {
   const [artists, setArtists] = useState(null); // null = loading
   const [ledger, setLedger] = useState([]);
   const [error, setError] = useState("");
+  // Per-order-item draft overhead amount (₹, as typed) for the "finalize an
+  // ORIGINAL payout" form below — keyed by orderItem.id.
+  const [overheadDrafts, setOverheadDrafts] = useState({});
+  const [finalizing, setFinalizing] = useState(() => new Set());
+  const [finalizeErrors, setFinalizeErrors] = useState({});
 
-  useEffect(() => {
+  function refetch() {
     Promise.all([
       apiFetch("/admin/artists"),
       apiFetch("/payouts/ledger").catch(() => ({ pending: [] })),
@@ -1472,7 +1560,30 @@ function ArtistsPanel({ gold, goldHi, cream, stone, line, ink2, openArtist }) {
         setLedger(payouts.pending || []);
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load artists."));
-  }, []);
+  }
+  useEffect(() => { refetch(); }, []);
+
+  async function finalizeOriginal(item) {
+    if (finalizing.has(item.id)) return;
+    const overheadRupees = Number(overheadDrafts[item.id]);
+    if (!Number.isFinite(overheadRupees) || overheadRupees < 0) {
+      setFinalizeErrors((e) => ({ ...e, [item.id]: "Enter a valid overhead amount (₹, 0 or more)." }));
+      return;
+    }
+    setFinalizing((s) => new Set(s).add(item.id));
+    setFinalizeErrors((e) => ({ ...e, [item.id]: "" }));
+    try {
+      await apiFetch(`/payouts/ledger/${item.id}/finalize-original`, {
+        method: "POST",
+        body: JSON.stringify({ overheadAmount: Math.round(overheadRupees * 100) }),
+      });
+      refetch();
+    } catch (err) {
+      setFinalizeErrors((e) => ({ ...e, [item.id]: err instanceof ApiError ? err.message : "Couldn't finalize — try again." }));
+    } finally {
+      setFinalizing((s) => { const next = new Set(s); next.delete(item.id); return next; });
+    }
+  }
 
   if (error) return <p style={{ color: "#c9524b", fontSize: 12.5 }}>{error}</p>;
   if (artists === null) return <p style={{ color: stone, fontSize: 12.5 }}>Loading artists…</p>;
@@ -1493,8 +1604,48 @@ function ArtistsPanel({ gold, goldHi, cream, stone, line, ink2, openArtist }) {
     }))
     .sort((a, b) => b.payoutOwed - a.payoutOwed || b.submissionCount - a.submissionCount);
 
+  // Original-artwork sales sit in the ledger with artistPayoutAmount still
+  // null — they're owed, just not yet computed, since that needs the real
+  // overhead (transport + packaging + marketing) for that specific sale,
+  // which isn't known at order time. See routes/orders.js and
+  // routes/payouts.js's finalize-original.
+  const needsOverhead = ledger.filter((item) => item.format === "ORIGINAL" && item.artistPayoutAmount == null);
+
   return (
     <div>
+      {needsOverhead.length > 0 && (
+        <div style={{ marginBottom: 44 }}>
+          <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>
+            Original Artwork Payouts Awaiting Overhead ({needsOverhead.length})
+          </div>
+          <p style={{ fontSize: 11.5, color: stone, marginBottom: 14, lineHeight: 1.6 }}>
+            Each original sale splits 50/50 between the artist and resembles.nothing, after the actual transport, packaging, and marketing cost for that sale. Enter that cost once it's known to compute and lock in the artist's share.
+          </p>
+          <div style={{ border: `1px solid ${line}` }}>
+            {needsOverhead.map((item) => (
+              <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderBottom: `1px solid ${line}`, flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  <div style={{ fontSize: 12.5, color: cream }}>{item.product?.name || "Design"}</div>
+                  <div style={{ fontSize: 10.5, color: stone }}>{item.artist?.name || "Unknown artist"} · sold for {currency(item.priceINR)}</div>
+                </div>
+                <input
+                  type="number" min="0" placeholder="Overhead (₹)"
+                  value={overheadDrafts[item.id] || ""} onChange={(e) => setOverheadDrafts((d) => ({ ...d, [item.id]: e.target.value }))}
+                  style={{ width: 130, background: ink2, border: `1px solid ${line}`, color: cream, padding: "6px 8px", fontSize: 11.5, outline: "none" }}
+                />
+                <button
+                  onClick={() => finalizeOriginal(item)} disabled={finalizing.has(item.id)}
+                  style={{ fontSize: 11, padding: "8px 14px", background: gold, color: "#0a0a09", border: "none", cursor: finalizing.has(item.id) ? "default" : "pointer", opacity: finalizing.has(item.id) ? 0.6 : 1, flexShrink: 0 }}
+                >
+                  {finalizing.has(item.id) ? "Working…" : "Finalize split"}
+                </button>
+                {finalizeErrors[item.id] && <p style={{ color: "#c9524b", fontSize: 11, margin: 0, width: "100%" }}>{finalizeErrors[item.id]}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: gold, marginBottom: 16 }}>Artist Roster & Payouts ({artistRoster.length})</div>
       {artistRoster.length === 0 ? (
         <p style={{ fontSize: 12.5, color: stone }}>No artist accounts yet.</p>
@@ -1698,6 +1849,7 @@ export default function App() {
   const [showSubmitArt, setShowSubmitArt] = useState(false);
   const [submitPreview, setSubmitPreview] = useState(null);
   const [submitArtBusy, setSubmitArtBusy] = useState(false);
+  const [submitIsOriginal, setSubmitIsOriginal] = useState(false); // "sell this as" === an already-painted piece, not a design to print
   const [artistStep, setArtistStep] = useState("info"); // "info" | "bank"
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizStep, setQuizStep] = useState(0);
@@ -2116,7 +2268,8 @@ export default function App() {
     e.preventDefault();
     const form = new FormData(e.target);
     const formatValue = form.get("format");
-    const formats = formatValue === "both" ? ["TAPESTRY", "CANVAS"] : formatValue === "tapestry" ? ["TAPESTRY"] : ["CANVAS"];
+    const isOriginal = formatValue === "original";
+    const formats = isOriginal ? [] : formatValue === "both" ? ["TAPESTRY", "CANVAS"] : formatValue === "tapestry" ? ["TAPESTRY"] : ["CANVAS"];
     setSubmitArtBusy(true);
     try {
       await apiFetch("/artists/submissions", {
@@ -2126,11 +2279,15 @@ export default function App() {
           description: form.get("desc"),
           suggestedPrice: Number(form.get("price")) || 0,
           formats,
+          isOriginal,
+          widthCm: isOriginal ? Number(form.get("widthCm")) : undefined,
+          heightCm: isOriginal ? Number(form.get("heightCm")) : undefined,
           imageUrl: submitPreview,
         }),
       });
       setShowSubmitArt(false);
       setSubmitPreview(null);
+      setSubmitIsOriginal(false);
       e.target.reset();
       showToast("Design submitted — our team will review it shortly");
       refetchSubmissions();
@@ -2355,6 +2512,7 @@ export default function App() {
   const availableFormats = viewProduct ? formatsFor(viewProduct) : [];
   const effectiveFormat = selectedFormat || availableFormats[0];
   const effectiveProduct = viewProduct ? withFormat(viewProduct, effectiveFormat) : null;
+  const isOriginalPiece = effectiveProduct ? isOriginalFormat(effectiveProduct) : false;
 
 
   // SEO / AI-crawler groundwork: structured Product data, title, meta
@@ -3551,30 +3709,35 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Size selector */}
-                <div style={{ marginBottom: 18 }}>
-                  <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: stone, marginBottom: 9 }}>Choose a size</div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {sizesFor(effectiveProduct).map((s) => (
-                      <button key={s.label} onClick={() => setSelectedSize(s)} disabled={viewProduct.sold} style={{
-                        textAlign: "left", padding: "10px 14px", cursor: viewProduct.sold ? "not-allowed" : "pointer",
-                        border: `1px solid ${selectedSize?.label === s.label ? gold : line}`,
-                        background: selectedSize?.label === s.label ? "rgba(201,162,75,0.1)" : "transparent"
-                      }}>
-                        <div style={{ fontSize: 12.5, color: selectedSize?.label === s.label ? goldHi : cream }}>{s.label}</div>
-                        <div style={{ fontSize: 10, color: stone, marginTop: 2 }}>{s.dims}</div>
-                        <div style={{ fontSize: 11, color: stone, marginTop: 2 }}>{fmtTier(s)}</div>
-                      </button>
-                    ))}
+                {/* Size selector — an ORIGINAL piece has exactly one real
+                    size (the piece itself), so there's nothing to choose:
+                    skip the picker entirely rather than showing a single
+                    button that pretends it's a choice. */}
+                {!isOriginalPiece && (
+                  <div style={{ marginBottom: 18 }}>
+                    <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: stone, marginBottom: 9 }}>Choose a size</div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {sizesFor(effectiveProduct).map((s) => (
+                        <button key={s.label} onClick={() => setSelectedSize(s)} disabled={viewProduct.sold} style={{
+                          textAlign: "left", padding: "10px 14px", cursor: viewProduct.sold ? "not-allowed" : "pointer",
+                          border: `1px solid ${selectedSize?.label === s.label ? gold : line}`,
+                          background: selectedSize?.label === s.label ? "rgba(201,162,75,0.1)" : "transparent"
+                        }}>
+                          <div style={{ fontSize: 12.5, color: selectedSize?.label === s.label ? goldHi : cream }}>{s.label}</div>
+                          <div style={{ fontSize: 10, color: stone, marginTop: 2 }}>{s.dims}</div>
+                          <div style={{ fontSize: 11, color: stone, marginTop: 2 }}>{fmtTier(s)}</div>
+                        </button>
+                      ))}
+                    </div>
+                    <p style={{ fontSize: 10.5, color: stone, marginTop: 8, lineHeight: 1.5 }}>
+                      Format and sizing change the scale and material of this piece, not its edition size.
+                    </p>
                   </div>
-                  <p style={{ fontSize: 10.5, color: stone, marginTop: 8, lineHeight: 1.5 }}>
-                    Format and sizing change the scale and material of this piece, not its edition size.
-                  </p>
-                </div>
+                )}
 
                 <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, color: cream, marginBottom: 6 }}>{fmtTier(selectedSize || defaultSizeFor(effectiveProduct))}</div>
                 {viewProduct.sold ? (
-                  <div style={{ fontSize: 12, color: goldHi, marginBottom: 18 }}>Sold out — this edition has found its home and won't be remade.</div>
+                  <div style={{ fontSize: 12, color: goldHi, marginBottom: 18 }}>{isOriginalPiece ? "Sold — this was the one and only original, and it's found its home." : "Sold out — this edition has found its home and won't be remade."}</div>
                 ) : viewProduct.cartCount > 0 ? (
                   <div style={{ fontSize: 12, color: goldHi, marginBottom: 18 }}>🛒 In {viewProduct.cartCount} cart{viewProduct.cartCount > 1 ? "s" : ""} right now</div>
                 ) : <div style={{ marginBottom: 18 }} />}
@@ -3582,7 +3745,12 @@ export default function App() {
 
                 {/* Specifications */}
                 <div style={{ marginBottom: 26, border: `1px solid ${line}` }}>
-                  {[
+                  {(isOriginalPiece ? [
+                    ["Format", "Original artwork — not a print"],
+                    ["Size", (selectedSize || defaultSizeFor(effectiveProduct)).dims],
+                    ["Availability", "One physical piece — sold once, then gone"],
+                    ["Delivery", "Worldwide, carefully packed"],
+                  ] : [
                     ["Format", FORMAT_LABELS[effectiveFormat] || effectiveFormat],
                     ["Size", (selectedSize || defaultSizeFor(effectiveProduct)).dims],
                     ["Material", effectiveFormat === "TAPESTRY" ? "Premium satin fabric" : "380 GSM canvas"],
@@ -3590,7 +3758,7 @@ export default function App() {
                     ["Production", "Made to order"],
                     ["Dispatch", effectiveFormat === "TAPESTRY" ? "3–5 business days" : "5–8 business days"],
                     ["Delivery", "Worldwide"],
-                  ].map(([label, value], i) => (
+                  ]).map(([label, value], i) => (
                     <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", borderTop: i === 0 ? "none" : `1px solid ${line}` }}>
                       <span style={{ fontSize: 12, color: stone }}>{label}</span>
                       <span style={{ fontSize: 12, color: cream }}>{value}</span>
@@ -4266,11 +4434,13 @@ export default function App() {
 
       {/* SUBMIT ARTWORK MODAL */}
       {showSubmitArt && (
-        <Modal onClose={() => { setShowSubmitArt(false); setSubmitPreview(null); }} width={440}>
-          <button onClick={() => { setShowSubmitArt(false); setSubmitPreview(null); }} style={{ position: "absolute", top: 18, right: 18, background: "none", border: "none", color: stone, fontSize: 20, cursor: "pointer" }}>×</button>
+        <Modal onClose={() => { setShowSubmitArt(false); setSubmitPreview(null); setSubmitIsOriginal(false); }} width={440}>
+          <button onClick={() => { setShowSubmitArt(false); setSubmitPreview(null); setSubmitIsOriginal(false); }} style={{ position: "absolute", top: 18, right: 18, background: "none", border: "none", color: stone, fontSize: 20, cursor: "pointer" }}>×</button>
           <h3 style={{ fontSize: 22, marginBottom: 6 }}>Submit a Design</h3>
           <p style={{ fontSize: 12.5, color: stone, lineHeight: 1.65, marginBottom: 20 }}>
-            Our team reviews every submission for originality and quality before it's listed. If approved, you earn {ARTIST_COMMISSION_PCT}% of the sale — and since each design can only be sold once, once it's gone, it's gone.
+            {submitIsOriginal
+              ? "Our team reviews every submission before it's listed. An original splits 50/50 with you after the real cost of shipping, packaging, and marketing that sale — and since it's one specific physical piece, once it sells, it's gone for good."
+              : `Our team reviews every submission for originality and quality before it's listed. If approved, you earn ${ARTIST_COMMISSION_PCT}% of the sale — and since each design can only be sold once, once it's gone, it's gone.`}
           </p>
           <form onSubmit={submitArtwork}>
             <label style={{ display: "block", marginBottom: 16 }}>
@@ -4291,17 +4461,28 @@ export default function App() {
             <Field label="Title" name="title" placeholder="Name your design" required />
             <label style={{ display: "block", marginBottom: 16 }}>
               <span style={{ display: "block", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: stone, marginBottom: 7 }}>Sell this as</span>
-              <select name="format" required defaultValue="" style={{
+              <select name="format" required defaultValue="" onChange={(e) => setSubmitIsOriginal(e.target.value === "original")} style={{
                 width: "100%", background: ink2, border: `1px solid ${line}`, color: cream, padding: "12px 14px",
                 fontSize: 14, fontFamily: "'Jost', sans-serif", outline: "none", boxSizing: "border-box"
               }}>
                 <option value="" disabled>Choose a format</option>
-                <option value="tapestry">Tapestry</option>
-                <option value="canvas">Canvas</option>
-                <option value="both">Both — list separately</option>
+                <option value="tapestry">Tapestry (printed)</option>
+                <option value="canvas">Canvas (printed)</option>
+                <option value="both">Both — list separately (printed)</option>
+                <option value="original">An original, already-painted piece — not for printing</option>
               </select>
             </label>
-            <Field label="Suggested price (₹)" name="price" type="number" min="500" placeholder="e.g. 2499" required />
+            {submitIsOriginal && (
+              <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <Field label="Width (cm)" name="widthCm" type="number" min="1" placeholder="e.g. 40" required />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Field label="Height (cm)" name="heightCm" type="number" min="1" placeholder="e.g. 100" required />
+                </div>
+              </div>
+            )}
+            <Field label={submitIsOriginal ? "Your asking price (₹)" : "Suggested price (₹)"} name="price" type="number" min="500" placeholder="e.g. 2499" required />
             <label style={{ display: "block", marginBottom: 16 }}>
               <span style={{ display: "block", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: stone, marginBottom: 7 }}>Description</span>
               <textarea name="desc" rows={3} placeholder="What's the story behind this piece?" required style={{

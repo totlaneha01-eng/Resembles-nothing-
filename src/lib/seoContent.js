@@ -23,6 +23,7 @@ const FORMAT_LABEL = {
   TRIPTYCH: "triptych canvas set",
   DIPTYCH: "diptych canvas set",
   QUADRIPTYCH: "four-panel canvas set",
+  ORIGINAL: "original painting",
 };
 
 const FABRIC_NOTE = {
@@ -178,10 +179,31 @@ const STORY_TEMPLATES = [
     `It's built on ${fabric} and made to order in India rather than pulled off a factory line — worth knowing for ${cat.intent}, or just after ${u2.interior2}. It also travels well as ${u2.gift2} — every order is packed carefully and shipped worldwide, so the only thing you need to decide is which wall it's claiming.`,
 ];
 
+// A format: ["ORIGINAL"] product is a specific, already-painted physical
+// piece, not a reproducible design — "printed at Wcm", "made to order",
+// "printed on fabric" would all just be wrong here, so this gets its own
+// templates rather than reusing DESC_TEMPLATES/STORY_TEMPLATES with a
+// swapped-in format label.
+const ORIGINAL_DESC_TEMPLATES = [
+  (n, b, cat, u, width, height) =>
+    `${b} "${n}" is the original piece itself — hand-painted, not a print or a reproduction — sized at ${width} × ${height}cm. Once it sells there's no second copy to buy: this exact piece is retired from the catalogue for good. It works well as ${u.gift} and as ${u.interior}; it's also a strong pick for ${cat.intent}. Carefully packed and shipped worldwide.`,
+  (n, b, cat, u, width, height) =>
+    `${b} From the ${cat.name} collection, "${n}" is an original ${width} × ${height}cm piece — the actual work, already painted, not made to order. Beyond being ${cat.kw0}, it doubles as ${u.gift} and ${u.interior}, and it's a strong pick for ${cat.intent}. Carefully packed and shipped worldwide.`,
+];
+
+const ORIGINAL_STORY_TEMPLATES = [
+  (n, mood, cat, u2) =>
+    `"${n}" belongs in ${mood} — somewhere that wants the real thing, not a print half the internet could also buy. This is the one and only original: once it's bought there's nothing left to reprint or reorder, because nothing about it was ever printed in the first place.\n\n` +
+    `Beyond being ${cat.kw1}, it's ${u2.collector} — a strong pick for ${cat.intent}, or simply ${u2.gift2}. Carefully packed and shipped worldwide, exactly as it was painted.`,
+  (n, mood, cat, u2) =>
+    `Picture "${n}" in ${mood}: it's the kind of piece that does the talking a bare wall can't, because it's the actual original — brushstrokes and all, not a copy of one. resembles.nothing lists each original once; once it's gone, it's gone.\n\n` +
+    `Worth knowing for ${cat.intent}, or just after ${u2.interior2} — it also travels well as ${u2.gift2}, carefully packed and shipped worldwide.`,
+];
+
 // Deterministic generation (same slug -> same output every time) so running
 // this repeatedly, e.g. re-seeding, doesn't rewrite content that's already
 // been indexed by search engines under a specific URL.
-function generateProductSeoContent({ slug, name, category, blurb, formats, widthCm }) {
+function generateProductSeoContent({ slug, name, category, blurb, formats, widthCm, heightCm }) {
   const catData = CATEGORY[category] || fallback(category);
   const altKw = catData.kw.filter((k, i) => i !== 0);
   const cat = {
@@ -201,6 +223,18 @@ function generateProductSeoContent({ slug, name, category, blurb, formats, width
     interior2: hashPick(slug + "l", UNIVERSAL.interior),
   };
   const mood = hashPick(slug + "c", catData.mood);
+
+  if (Array.isArray(formats) && formats[0] === "ORIGINAL") {
+    const width = widthCm || 100;
+    const height = heightCm || 100;
+    const descFn = ORIGINAL_DESC_TEMPLATES[hashPick(slug + "d", ORIGINAL_DESC_TEMPLATES.map((_, i) => i))];
+    const storyFn = ORIGINAL_STORY_TEMPLATES[hashPick(slug + "e", ORIGINAL_STORY_TEMPLATES.map((_, i) => i))];
+    const description = descFn(name, blurb, cat, u, width, height);
+    const story = storyFn(name, mood, cat, u2);
+    const alt = `${name} — original ${category} painting, one-of-one artwork by resembles.nothing, India`;
+    return { description, story, alt };
+  }
+
   const fmt = fmtLabel(formats);
   const fabric = FABRIC_NOTE[fmt] || "premium printed fabric";
   const width = widthCm || 100;

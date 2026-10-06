@@ -15,34 +15,66 @@ router.post("/apply", requireAuth, async (req, res) => {
 });
 
 router.post("/submissions", requireAuth, requireArtist, async (req, res) => {
-  const { title, description, suggestedPrice, imageUrl } = req.body;
-  // A submission can propose more than one format (e.g. "I'd like this sold
-  // as both a Tapestry and a Canvas"); accept a legacy single `format` too.
-  const formats = Array.isArray(req.body.formats) && req.body.formats.length ? req.body.formats : req.body.format ? [req.body.format] : [];
-  const editionSize = Number.isInteger(req.body.editionSize) && req.body.editionSize > 0 ? req.body.editionSize : 1;
-  const submission = await prisma.artistSubmission.create({
-    data: { artistId: req.user.id, title, description, formats, editionSize, suggestedPrice, imageUrl },
-  });
-  res.json({ submission });
+  try {
+    const { title, description, suggestedPrice, imageUrl } = req.body;
+    // "This is a specific, already-painted piece" — not a design to be
+    // printed. Formats/editionSize don't apply the normal way: it's always
+    // exactly one physical object, so formats is forced to ["ORIGINAL"]
+    // regardless of what (if anything) was checked on the form, and
+    // editionSize is forced to 1 rather than trusting the field.
+    const isOriginal = req.body.isOriginal === true;
+    // A submission can propose more than one format (e.g. "I'd like this sold
+    // as both a Tapestry and a Canvas"); accept a legacy single `format` too.
+    const formats = isOriginal
+      ? ["ORIGINAL"]
+      : Array.isArray(req.body.formats) && req.body.formats.length ? req.body.formats : req.body.format ? [req.body.format] : [];
+    const editionSize = isOriginal ? 1 : (Number.isInteger(req.body.editionSize) && req.body.editionSize > 0 ? req.body.editionSize : 1);
+    let widthCm = null;
+    let heightCm = null;
+    if (isOriginal) {
+      widthCm = Number(req.body.widthCm);
+      heightCm = Number(req.body.heightCm);
+      if (!Number.isFinite(widthCm) || widthCm <= 0 || !Number.isFinite(heightCm) || heightCm <= 0) {
+        return res.status(400).json({ error: "An original piece needs its real width and height (cm)" });
+      }
+    }
+    const submission = await prisma.artistSubmission.create({
+      data: { artistId: req.user.id, title, description, formats, isOriginal, widthCm, heightCm, editionSize, suggestedPrice, imageUrl },
+    });
+    res.json({ submission });
+  } catch (err) {
+    console.error("artists POST /submissions failed:", err);
+    res.status(500).json({ error: "Couldn't submit that design — try again." });
+  }
 });
 
 router.get("/submissions/mine", requireAuth, requireArtist, async (req, res) => {
-  const submissions = await prisma.artistSubmission.findMany({
-    where: { artistId: req.user.id },
-    orderBy: { createdAt: "desc" },
-  });
-  res.json({ submissions });
+  try {
+    const submissions = await prisma.artistSubmission.findMany({
+      where: { artistId: req.user.id },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json({ submissions });
+  } catch (err) {
+    console.error("artists GET /submissions/mine failed:", err);
+    res.status(500).json({ error: "Couldn't load your submissions — try again." });
+  }
 });
 
 // ---- Admin review queue ----
 
 router.get("/submissions/pending", requireAuth, requireAdmin, async (req, res) => {
-  const submissions = await prisma.artistSubmission.findMany({
-    where: { status: "PENDING" },
-    include: { artist: { select: { name: true, email: true } } },
-    orderBy: { createdAt: "asc" },
-  });
-  res.json({ submissions });
+  try {
+    const submissions = await prisma.artistSubmission.findMany({
+      where: { status: "PENDING" },
+      include: { artist: { select: { name: true, email: true } } },
+      orderBy: { createdAt: "asc" },
+    });
+    res.json({ submissions });
+  } catch (err) {
+    console.error("artists GET /submissions/pending failed:", err);
+    res.status(500).json({ error: "Couldn't load pending submissions — try again." });
+  }
 });
 
 router.post("/submissions/:id/approve", requireAuth, requireAdmin, async (req, res) => {
@@ -62,13 +94,25 @@ router.post("/submissions/:id/approve", requireAuth, requireAdmin, async (req, r
 
     const slug = slugify(submission.title);
     const category = req.body.category || "Abstract";
-    const widthCm = req.body.widthCm || 30;
     const blurb = req.body.blurb || submission.description.slice(0, 80);
+    const isOriginal = submission.isOriginal;
+    // A print's width is an admin/catalog decision made right here (default
+    // 30cm). An original's width/height are facts about a specific physical
+    // object the artist already stated at submission time — admin can still
+    // correct a mistake via req.body, but there's no sane default to fall
+    // back to the way there is for a reproducible print.
+    const widthCm = isOriginal ? req.body.widthCm || submission.widthCm : req.body.widthCm || 30;
+    const heightCm = isOriginal ? req.body.heightCm || submission.heightCm : null;
+    if (isOriginal && (!widthCm || !heightCm)) {
+      return res.status(400).json({ error: "This original submission is missing its width/height — set both before approving." });
+    }
     // Landscape-oriented uploads print fine as Tapestry/Canvas — they just
     // need the admin to flag that at approval, same way category/widthCm
     // already get filled in here (the frontend prefills this from the
     // submitted image's real aspect ratio, but the admin can override it).
-    const orientation = req.body.orientation === "LANDSCAPE" ? "LANDSCAPE" : "PORTRAIT";
+    // Not meaningful for an ORIGINAL (its real dims come from widthCm/
+    // heightCm directly, not a print's size-tier table) — left PORTRAIT.
+    const orientation = !isOriginal && req.body.orientation === "LANDSCAPE" ? "LANDSCAPE" : "PORTRAIT";
     // Every design approved from here on gets the same real, keyword-relevant
     // description/story as the hand-seeded catalogue — not a copy of the
     // artist's raw submission text — so content quality doesn't degrade as
@@ -80,6 +124,7 @@ router.post("/submissions/:id/approve", requireAuth, requireAdmin, async (req, r
       blurb,
       formats: submission.formats,
       widthCm,
+      heightCm,
     });
 
     const product = await prisma.$transaction(async (tx) => {
@@ -90,6 +135,7 @@ router.post("/submissions/:id/approve", requireAuth, requireAdmin, async (req, r
           category,
           price: submission.suggestedPrice,
           widthCm,
+          heightCm,
           orientation,
           images: [submission.imageUrl, submission.imageUrl, submission.imageUrl],
           blurb,

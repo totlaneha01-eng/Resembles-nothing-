@@ -77,6 +77,13 @@ router.post("/manual", requireAuth, async (req, res) => {
         items: {
           create: items.map((i) => {
             const product = byId[i.productId];
+            // An ORIGINAL piece's payout isn't a fixed % of the sale price —
+            // it's 50/50 of (sale price - actual transport/packaging/
+            // marketing cost for this specific sale), and that cost isn't
+            // known yet at order time. Leave artistPayoutAmount null (still
+            // PENDING, since a payout IS owed) until an admin finalizes it
+            // with the real overhead — see POST /payouts/ledger/:id/finalize-original.
+            const isOriginal = i.format === "ORIGINAL";
             return {
               productId: i.productId,
               format: i.format,
@@ -85,7 +92,7 @@ router.post("/manual", requireAuth, async (req, res) => {
               priceINR: i.priceINR,
               priceUSD: i.priceUSD || 0,
               artistId: product.artistId,
-              artistPayoutAmount: product.artistId ? Math.round((i.priceINR * ARTIST_COMMISSION_PCT) / 100) : null,
+              artistPayoutAmount: product.artistId && !isOriginal ? Math.round((i.priceINR * ARTIST_COMMISSION_PCT) / 100) : null,
               artistPayoutStatus: product.artistId ? "PENDING" : "NOT_APPLICABLE",
             };
           }),
