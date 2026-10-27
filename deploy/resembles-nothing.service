@@ -1,0 +1,26 @@
+# Alternative to Docker: run the app as a plain systemd service.
+# Install: copy to /etc/systemd/system/resembles-nothing.service, edit the
+# User/WorkingDirectory/EnvironmentFile paths for your server, then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now resembles-nothing
+# Logs: journalctl -u resembles-nothing -f
+#
+# Unlike the Docker image, this does NOT run `prisma migrate deploy`
+# automatically on every start — run it by hand after a `git pull`
+# (see DEPLOY.md) before restarting the service.
+
+[Unit]
+Description=resembles.nothing API + shop
+After=network.target
+
+[Service]
+Type=simple
+User=resembles
+WorkingDirectory=/opt/resembles-nothing
+EnvironmentFile=/opt/resembles-nothing/.env
+ExecStart=/usr/bin/node src/index.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
