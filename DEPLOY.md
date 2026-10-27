@@ -10,6 +10,39 @@ process itself runs. Two ways to do that are set up here: **Docker**
 (recommended — one command, consistent environment) or a **plain systemd
 service** (if you'd rather not use Docker).
 
+## Oracle Cloud specifics
+
+If the server is an OCI compute instance, two things trip up almost
+everyone on a fresh one — worth doing before anything else:
+
+1. **Traffic is blocked twice, not once.** Opening 80/443 in the VCN's
+   Security List (or a Network Security Group) is not enough on its own —
+   Oracle's stock images (Ubuntu included) also ship with the OS's own
+   `iptables` rules pre-configured to drop anything not explicitly
+   allowed, independent of the cloud-level rule. Both have to be opened:
+   - **Console**: your instance's VCN → Security Lists (or the NSG
+     attached to the instance) → Add Ingress Rules → source `0.0.0.0/0`,
+     TCP, destination ports `80` and `443` (`22` for SSH is usually
+     already open from instance creation).
+   - **On the instance itself** (Ubuntu images):
+     ```bash
+     sudo iptables -I INPUT -p tcp --dport 80 -j ACCEPT
+     sudo iptables -I INPUT -p tcp --dport 443 -j ACCEPT
+     sudo netfilter-persistent save   # or: sudo apt install iptables-persistent
+     ```
+     Skipping this step is the #1 reason "the site just doesn't load" on a
+     brand new OCI box even though everything else is configured right.
+2. **Reserve the public IP.** A freshly-created instance usually gets an
+   *ephemeral* public IP, which can change on a stop/start. Networking →
+   IP Management → reserve it (or attach a reserved one at instance
+   creation) before pointing DNS at it, so a reboot doesn't silently break
+   the domain.
+
+Everything below (Docker, nginx, certbot) is otherwise identical on OCI —
+the Always Free ARM shape (Ampere A1) works fine too, `node:22-alpine` is a
+multi-arch image and Docker pulls the right one automatically; no Dockerfile
+changes needed either way.
+
 ## Prerequisites
 
 - A server (VPS or physical) with a public IP, port 80/443 reachable
